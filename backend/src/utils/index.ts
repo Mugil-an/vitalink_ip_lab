@@ -8,16 +8,3 @@ export { hashPassword, comparePasswords, generateSalt } from './auth.utils'
 export {default as asyncHandler} from './asynchandler' 
 export {default as ApiResponse} from './ApiResponse'
 export {default as ApiError} from './ApiError'
-
-export function getModel(userType: UserType) {
-    switch (userType) {
-      case 'ADMIN':
-        return Admin;
-      case 'DOCTOR':
-        return Doctor;
-      case 'PATIENT':
-        return Patient;
-      default:
-        throw new Error('Invalid user type');
-    }
-}

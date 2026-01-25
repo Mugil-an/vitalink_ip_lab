@@ -31,31 +31,29 @@ const UserSchema = new mongoose.Schema({
   user_type_model: {
     type: String,
     required: true,
-    validate: {
-      validator: function (this: any, value: string) {
-        const map = {
-          ADMIN: 'AdminProfile',
-          DOCTOR: 'DoctorProfile',
-          PATIENT: 'PatientProfile',
-        };
-        return map[this.user_type] === value;
-      },
-      message: 'user_type_model does not match user_type',
-    }
   },
   is_active: { type: Boolean, default: true },
 }, { timestamps: true });
 
-UserSchema.pre("save", async function (next: NextFunction) {
-   if(!this.isModified('password')) { return next(); }
-   this.salt = generateSalt();
-   this.password = await hashPassword(this.password, this.salt);
+UserSchema.pre('save', function () {
+  const map: Record<string, string> = {
+    ADMIN: 'AdminProfile',
+    DOCTOR: 'DoctorProfile',
+    PATIENT: 'PatientProfile',
+  }
+  this.user_type_model = map[this.user_type]
 })
 
-UserSchema.methods.toJSON  = function() {
-    var object = this.toObject();
-    delete object.password;
-    return object;
+UserSchema.pre("save", async function (next: NextFunction) {
+  if (!this.isModified('password')) { return next(); }
+  this.salt = generateSalt();
+  this.password = await hashPassword(this.password, this.salt);
+})
+
+UserSchema.methods.toJSON = function () {
+  var object = this.toObject();
+  delete object.password;
+  return object;
 }
 
 export interface UserDocument extends mongoose.InferSchemaType<typeof UserSchema> { }

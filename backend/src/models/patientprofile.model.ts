@@ -2,17 +2,17 @@ import mongoose from "mongoose";
 import { DosageScheduleSchema, InrLogSchema, HealthLogSchema } from "./index";
 
 const PatientProfileSchema = new mongoose.Schema({
-  assigned_doctor_id: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    index: true 
+  assigned_doctor_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
   },
   demographics: {
     name: { type: String, required: [true, "Name is required"] },
     age: { type: Number },
-    gender: { 
-        type: String,
-        enum: ["Male", "Female", "Other"]
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"]
     },
     phone: { type: String },
     next_of_kin: {
@@ -34,13 +34,13 @@ const PatientProfileSchema = new mongoose.Schema({
   weekly_dosage: DosageScheduleSchema,
   inr_history: [InrLogSchema],
   health_logs: [HealthLogSchema],
-  account_status: { 
-    type: String, 
-    enum: ['Active', 'Discharged', 'Deceased'], 
-    default: 'Active' 
+  account_status: {
+    type: String,
+    enum: ['Active', 'Discharged', 'Deceased'],
+    default: 'Active'
   }
-}, {timestamps: true});
+}, { timestamps: true });
 
-export interface PatientProfileDocument extends mongoose.Document, mongoose.InferSchemaType<typeof PatientProfileSchema>{}
+export interface PatientProfileDocument extends mongoose.Document, mongoose.InferSchemaType<typeof PatientProfileSchema> { }
 
 export default mongoose.model<PatientProfileDocument>("PatientProfile", PatientProfileSchema)
