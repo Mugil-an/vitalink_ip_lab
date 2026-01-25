@@ -1,24 +1,26 @@
+import { generateSalt, hashPassword } from "@src/utils";
 import { UserType } from "@src/validators";
+import { NextFunction } from "express";
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema({
-  login_id: { 
-    type: String, 
-    required: [true, 'Login ID is required'], 
-    unique: true 
-  }, 
-  password: { 
-    type: String, 
-    required: [true, 'Password is required'] 
+  login_id: {
+    type: String,
+    required: [true, 'Login ID is required'],
+    unique: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required']
   },
   salt: {
-    type: String, 
+    type: String,
     required: [true, 'Salt is required']
   },
-  user_type: { 
+  user_type: {
     type: String,
     enum: Object.values(UserType),
-    required: [true, 'User type is required'] 
+    required: [true, 'User type is required']
   },
   profile_id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -44,6 +46,18 @@ const UserSchema = new mongoose.Schema({
   is_active: { type: Boolean, default: true },
 }, { timestamps: true });
 
-export interface UserDocument extends mongoose.InferSchemaType<typeof UserSchema>{}
+UserSchema.pre("save", async function (next: NextFunction) {
+   if(!this.isModified('password')) { return next(); }
+   this.salt = generateSalt();
+   this.password = await hashPassword(this.password, this.salt);
+})
+
+UserSchema.methods.toJSON  = function() {
+    var object = this.toObject();
+    delete object.password;
+    return object;
+}
+
+export interface UserDocument extends mongoose.InferSchemaType<typeof UserSchema> { }
 
 export default mongoose.model<UserDocument>("User", UserSchema)

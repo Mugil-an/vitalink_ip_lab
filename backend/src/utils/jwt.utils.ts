@@ -2,11 +2,6 @@ import jwt from 'jsonwebtoken'
 import { config } from '@src/config'
 import { JWTPayload } from '@src/validators'
 
-/**
- * Generate a JWT token from a payload
- * @param payload - User identification data (user_id and user_type)
- * @returns Signed JWT token string
- */
 export function generateToken(payload: JWTPayload): string {
   try {
     const token = jwt.sign(payload, config.jwtSecret, {
@@ -18,11 +13,6 @@ export function generateToken(payload: JWTPayload): string {
   }
 }
 
-/**
- * Verify and decode a JWT token
- * @param token - JWT token string to verify
- * @returns Decoded payload if valid, null if invalid or expired
- */
 export function verifyToken(token: string): JWTPayload | null {
   try {
     const decoded = jwt.verify(token, config.jwtSecret) as JWTPayload
@@ -33,12 +23,6 @@ export function verifyToken(token: string): JWTPayload | null {
   }
 }
 
-/**
- * Extract token from Authorization header
- * Expected format: "Bearer {token}"
- * @param authHeader - Authorization header value
- * @returns Token string or null if malformed
- */
 export function extractTokenFromHeader(authHeader?: string): string | null {
   if (!authHeader) {
     return null

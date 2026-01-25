@@ -2,46 +2,32 @@ import express from "express";
 import helmet from "helmet";
 import limiter from "./config/ratelimiter";
 import router from "./routes";
+import errorHandler from "./middlewares/errorHandler";
+import { ApiResponse } from "./utils";
+import { StatusCodes } from "http-status-codes";
+import morgan from "morgan";
+import logger from "./utils/logger";
 
 const app = express();
 
-// Security middleware
+app.use(morgan('dev', {
+  stream: {
+    write: message => {
+      logger.info(message);
+    }
+  }
+}));
+
 app.use(helmet());
 app.use(limiter);
 
-// Body parsing middleware
 app.use(express.json());
 
-// Health check endpoint
 app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Welcome to VitaLink API",
-    status: "Server is running",
-  });
+  return res.json(new ApiResponse(StatusCodes.OK, "Welcome to the API"))
 });
 
-// API routes
 app.use("/api", router);
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-    path: req.path,
-  });
-});
-
-// Global error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error("Error:", err);
-
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || "Internal server error",
-    ...(process.env.NODE_ENV === "development" && { error: err }),
-  });
-});
+app.use(errorHandler);
 
 export default app;

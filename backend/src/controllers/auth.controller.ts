@@ -1,7 +1,6 @@
 import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import * as authService from '@src/services/auth.service'
-import { UserType } from '@src/validators'
 
 /**
  * POST /api/auth/register
