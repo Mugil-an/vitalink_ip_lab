@@ -3,32 +3,111 @@ import { ApiError, ApiResponse, asyncHandler } from '@src/utils'
 import { StatusCodes } from 'http-status-codes'
 import { PatientProfile, User } from '@src/models'
 import { UserType } from '@src/validators'
+import type { CreatePatientInput } from '@src/validators/doctor.validator'
 
 export const getPatients = asyncHandler(async (req: Request, res: Response) => {
   const { user_id } = req.user
-  const patients = PatientProfile.find({ assigned_doctor: user_id })
+  const doctor = await User.findById(user_id)
+  const patients = await PatientProfile.find({ assigned_doctor_id: doctor?.profile_id })
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Patients fetched successfully", { patients }))
 })
 
 export const viewPatient = asyncHandler(async (req: Request, res: Response) => {
   const { op_num } = req.params
-  const patient = await PatientProfile.findOne({ login_id: op_num, assigned_doctor_id: req.user.user_id })
-  if(!patient){
-    throw new ApiError(StatusCodes.NOT_FOUND, "Patient not found")
+  const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
+  if (!patientUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
   }
-  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Patient fetched successfully", { patient }))
+
+  const patient = await PatientProfile.findById(patientUser.profile_id)
+  if (!patient) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+  }
+
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Patient fetched successfully', { patient }))
 })
 
-export const addPatient = asyncHandler(async (req: Request, res: Response) => {
+export const addPatient = asyncHandler(async (req: Request<{}, {}, CreatePatientInput['body']>, res: Response) => {
+  if (!req.user) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized')
+  }
 
+  const doctorUser = await User.findById(req.user.user_id)
+
+  const { name, op_num, age, gender, contact_no, target_inr_min, target_inr_max, therapy, therapy_start_date,
+    prescription, medical_history, kin_name, kin_relation, kin_contact_number } = req.body
+
+  const existingUser = await User.findOne({ login_id: op_num })
+  if (existingUser) {
+    throw new ApiError(StatusCodes.CONFLICT, 'Patient with this OP number already exists')
+  }
+
+  const patientProfile = await PatientProfile.create({
+    assigned_doctor_id: doctorUser.profile_id,
+    demographics: {
+      name,
+      age,
+      gender,
+      phone: contact_no,
+      next_of_kin: { name: kin_name, relation: kin_relation, phone: kin_contact_number },
+    },
+    medical_config: {
+      therapy_drug: therapy,
+      therapy_start_date: therapy_start_date ?? undefined,
+      target_inr: {
+        min: target_inr_min ?? 2.0,
+        max: target_inr_max ?? 3.0,
+      },
+    },
+    medical_history: medical_history ?? undefined,
+    weekly_dosage: prescription ?? undefined,
+  })
+
+  const tempPassword = contact_no
+  await User.create({ login_id: op_num, password: tempPassword, user_type: UserType.PATIENT, profile_id: patientProfile._id })
+
+  res.status(StatusCodes.CREATED).json(new ApiResponse(StatusCodes.CREATED, 'Patient created successfully', { patient: patientProfile }))
 })
 
 export const reassignPatient = asyncHandler(async (req: Request, res: Response) => {
+  const { op_num } = req.params
+  const { new_doctor_id } = req.body
 
+  const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
+  if (!patientUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+  }
+
+  const doctorUser = await User.findOne({ login_id: new_doctor_id, user_type: UserType.DOCTOR })
+  if (!doctorUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Target doctor not found')
+  }
+
+  const patient = await PatientProfile.findByIdAndUpdate(
+    patientUser.profile_id,
+    { assigned_doctor_id: doctorUser.profile_id },
+    { new: true }
+  )
+
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Patient reassigned successfully', { patient }))
 })
 
 export const editPatientDosage = asyncHandler(async (req: Request, res: Response) => {
+  const { op_num } = req.params
+  const { prescription } = req.body
 
+  const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
+  if (!patientUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+  }
+
+  const patient = await PatientProfile.findByIdAndUpdate(
+    patientUser.profile_id,
+    { weekly_dosage: prescription },
+    { new: true }
+  )
+
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Dosage updated successfully', { patient }))
 })
 
 export const getReports = asyncHandler(async (req: Request, res: Response) => {
@@ -36,7 +115,7 @@ export const getReports = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const updateNextReview = asyncHandler(async (req: Request, res: Response) => {
-
+  
 })
 
 export const addInstructions = asyncHandler(async (req: Request, res: Response) => {
@@ -48,7 +127,17 @@ export const getInstructions = asyncHandler(async (req: Request, res: Response) 
 })
 
 export const getProfile = asyncHandler(async (req: Request, res: Response) => {
-  
+  if (!req.user) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized')
+  }
+
+  const doctor = await User.findById(req.user.user_id).populate('profile_id')
+  if (!doctor) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Doctor not found')
+  }
+
+  const patientsCount = await PatientProfile.countDocuments({ assigned_doctor_id: doctor.profile_id })
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Profile fetched successfully', { doctor, patients_count: patientsCount }))
 })
 
 export const getDoctors = asyncHandler(async (req: Request, res: Response) => {

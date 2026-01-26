@@ -53,6 +53,7 @@ UserSchema.pre("save", async function (next: NextFunction) {
 UserSchema.methods.toJSON = function () {
   var object = this.toObject();
   delete object.password;
+  delete object.salt;
   return object;
 }
 

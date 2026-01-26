@@ -9,4 +9,13 @@ export interface JWTPayload {
   user_type: UserType;
 }
 
-export { registerSchema, loginSchema } from './user.validator'
+export enum therapy_drug {
+  WARFARIN = "Warfarin",
+  HEPARIN = "Heparin",
+  DABIGATRAN = "Dabigatran",
+  RIVAROXABAN = "Rivaroxaban",
+  ACITROM = "ACITROM",
+}
+
+
+export { loginSchema } from './user.validator'

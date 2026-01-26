@@ -36,7 +36,9 @@ export const getDoctorById = asyncHandler(async (req: Request, res: Response) =>
 })
 
 export const createPatient = asyncHandler(async (req: Request<{}, {}, createPatientType["body"]>, res: Response) => {
-  const { assigned_doctor_id, op_num, name, password, age, gender, kin_name, kin_relation, kin_contact_number, } = req.body
+  const { assigned_doctor_id, op_num, name, password, age, gender, contact_no, target_inr_min, target_inr_max,
+    therapy, therapy_start_date, prescription, medical_history,
+    kin_name, kin_relation, kin_contact_number } = req.body
 
   const existingUser = await User.findOne({ login_id: op_num })
   if (existingUser) {
@@ -51,11 +53,22 @@ export const createPatient = asyncHandler(async (req: Request<{}, {}, createPati
   const patientProfile = await PatientProfile.create({
     assigned_doctor_id: doctor.profile_id,
     demographics: {
-      name, age, gender, next_of_kin: { name: kin_name, relation: kin_relation, phone: kin_contact_number }
-    }
+      name, age, gender, phone: contact_no,
+      next_of_kin: { name: kin_name, relation: kin_relation, phone: kin_contact_number }
+    },
+    medical_config: {
+      therapy_drug: therapy,
+      therapy_start_date: therapy_start_date ?? undefined,
+      target_inr: {
+        min: target_inr_min ?? 2.0,
+        max: target_inr_max ?? 3.0,
+      },
+    },
+    medical_history: medical_history ?? undefined,
+    weekly_dosage: prescription ?? undefined,
   })
 
-  const user = await User.create({ login_id: op_num, password, profile_id: patientProfile._id })
+  const user = await User.create({ login_id: op_num, password, user_type: UserType.PATIENT, profile_id: patientProfile._id })
 
   res.status(StatusCodes.CREATED).json(new ApiResponse(StatusCodes.CREATED, "Patient Created Successfully", { ...patientProfile, ...doctor }))
 })

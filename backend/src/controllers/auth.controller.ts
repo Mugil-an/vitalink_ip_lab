@@ -1,13 +1,13 @@
 import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
-import * as authService from '@src/services/auth.service'
 import { asyncHandler, ApiError, ApiResponse, generateToken } from '@src/utils'
 import {User} from '@src/models'
 import { comparePasswords } from '@src/utils'
 import { UserType } from '@src/validators'
+import { LoginInput } from '@src/validators/user.validator'
 
 
-export const loginController = asyncHandler(async (req: Request, res: Response) => {
+export const loginController = asyncHandler(async (req: Request<{}, {} , LoginInput["body"]>, res: Response) => {
   const { login_id, password } = req.body;
   const user = await User.findOne({ login_id })
   if (!user) {

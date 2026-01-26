@@ -21,9 +21,7 @@ const PatientProfileSchema = new mongoose.Schema({
       phone: { type: String }
     }
   },
-  // TODO: Review After This
   medical_config: {
-    diagnosis: { type: String },
     therapy_drug: { type: String },
     therapy_start_date: { type: Date },
     target_inr: {
@@ -31,6 +29,11 @@ const PatientProfileSchema = new mongoose.Schema({
       max: { type: Number, default: 3.0 }
     }
   },
+  medical_history: [{ 
+    diagnosis: { type: String },
+    duration_value: { type: Number },
+    duration_unit: { type: String, enum: ['Days', 'Weeks', 'Months', 'Years'] },
+  }],
   weekly_dosage: DosageScheduleSchema,
   inr_history: [InrLogSchema],
   health_logs: [HealthLogSchema],
