@@ -1,26 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/app/routers.dart';
-import 'package:frontend/app/theme.dart';
+import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
+import 'package:frontend/app/app.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
-  runApp(const MyApp());
-}
+  await QueryCache.instance.initialize();
+  await NetworkPolicy.instance.initialize();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final queryClient = AppDependencies.createQueryClient(
+    onError: (error) => debugPrint('Query error: $error'),
+  );
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Frontend',
-      theme: AppTheme.light,
-      // darkTheme: AppTheme.dark,
-      // themeMode: ThemeMode.system,
-      initialRoute: AppRouter.initialRoute,
-      routes: AppRouter.routes,
-      debugShowCheckedModeBanner: false,
-    );
-  }
+  runApp(VitalinkApp(queryClient: queryClient));
 }

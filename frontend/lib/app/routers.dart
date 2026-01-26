@@ -3,12 +3,14 @@ import 'package:frontend/features/login/login_page.dart';
 import 'package:frontend/features/patient/patient_page.dart';
 import 'package:frontend/features/patient/patient_home_page.dart';
 import 'package:frontend/features/doctor/doctor_dashboard_page.dart';
+import 'package:frontend/features/doctor/add_patient_page.dart';
 
 class AppRoutes {
 	static const String login = '/login';
 	static const String patient = '/patient';
 	static const String patientHome = '/patient-home';
 	static const String doctorDashboard = '/doctor-dashboard';
+	static const String doctorAddPatient = '/doctor-add-patient';
 	// Add more route names here as needed, e.g.
 	// static const String home = '/home';
 }
@@ -21,6 +23,7 @@ class AppRouter {
 		AppRoutes.patient: (_) => const PatientPage(),
 		AppRoutes.patientHome: (_) => const PatientHomePage(),
 		AppRoutes.doctorDashboard: (_) => const DoctorDashboardPage(),
+		AppRoutes.doctorAddPatient: (_) => const AddPatientPage(),
 		// Add other routes here, e.g.
 		// AppRoutes.home: (_) => const HomePage(),
 	};

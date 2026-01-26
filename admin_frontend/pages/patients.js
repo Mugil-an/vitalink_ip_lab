@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const { API_BASE, ensureAuth, authHeaders, showMessage, logout, setStatus } = window.common;
+  const { API_BASE, ensureAuth, authFetch, showMessage, logout, setStatus } = window.common;
 
   if (!ensureAuth()) return;
   setStatus('Signed in');
@@ -33,9 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadPatients = async () => {
     showMessage('[data-msg="patient"]', 'Loading...', 'info');
     try {
-      const res = await fetch(`${API_BASE}/admin/patients`, {
-        headers: authHeaders(),
-      });
+      const res = await authFetch(`${API_BASE}/admin/patients`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || 'Failed to load patients');
       renderPatients(data?.data || []);
@@ -72,9 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showMessage('[data-msg="patient"]', 'Creating...', 'info');
 
     try {
-      const res = await fetch(`${API_BASE}/admin/createPatient`, {
+      const res = await authFetch(`${API_BASE}/admin/createPatient`, {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify(payload),
       });
       const data = await res.json();

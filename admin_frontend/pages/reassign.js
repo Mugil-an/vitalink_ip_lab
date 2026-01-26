@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const { API_BASE, ensureAuth, authHeaders, showMessage, logout, setStatus } = window.common;
+  const { API_BASE, ensureAuth, authFetch, showMessage, logout, setStatus } = window.common;
 
   if (!ensureAuth()) return;
   setStatus('Signed in');
@@ -16,9 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showMessage('#reassign-message', 'Submitting...', 'info');
 
     try {
-      const res = await fetch(`${API_BASE}/admin/reassignPatient`, {
+      const res = await authFetch(`${API_BASE}/admin/reassignPatient`, {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify(payload),
       });
       const data = await res.json();

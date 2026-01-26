@@ -1,14 +1,21 @@
 // Shared helpers across admin pages
-const API_BASE = localStorage.getItem('api_base') || 'http://localhost:8000/api';
+const API_BASE = localStorage.getItem('api_base') || 'http://localhost:3000/api';
 
 const getToken = () => localStorage.getItem('token');
 const setToken = (token) => localStorage.setItem('token', token || '');
 const clearToken = () => localStorage.removeItem('token');
 
-const authHeaders = () => ({
-  Authorization: `Bearer ${getToken()}`,
-  'Content-Type': 'application/json',
-});
+const authHeaders = () => {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+};
+
+const authFetch = (url, options = {}) => {
+  const mergedHeaders = { ...authHeaders(), ...(options.headers || {}) };
+  return fetch(url, { ...options, headers: mergedHeaders });
+};
 
 const setStatus = (text) => {
   const el = document.getElementById('auth-status');
@@ -18,7 +25,7 @@ const setStatus = (text) => {
 const ensureAuth = () => {
   const token = getToken();
   if (!token) {
-    window.location.href = 'login.html';
+    window.location.href = './login.html';
     return false;
   }
   setStatus('Signed in');
@@ -47,4 +54,5 @@ window.common = {
   ensureAuth,
   showMessage,
   logout,
+  authFetch,
 };

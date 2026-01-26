@@ -25,15 +25,16 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data?.message || 'Login failed');
       }
 
-      if (!data?.data?.accessToken) {
+      const token = data?.data?.token || data?.data?.accessToken;
+      if (!token) {
         throw new Error('Missing token in response');
       }
 
-      setToken(data.data.accessToken);
+      setToken(token);
       setStatus('Signed in');
       showMessage('#login-message', 'Success! Redirecting...', 'success');
       setTimeout(() => {
-        window.location.href = 'doctors.html';
+        window.location.href = './doctors.html';
       }, 600);
     } catch (err) {
       showMessage('#login-message', err.message, 'error');

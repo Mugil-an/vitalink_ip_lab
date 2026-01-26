@@ -14,62 +14,96 @@ class AppNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final horizontal = (size.width * 0.06).clamp(12.0, 32.0);
+    final logoHeight = size.width < 340
+        ? 52.0
+        : size.width < 480
+            ? 64.0
+            : 76.0;
+    final dividerHeight = (logoHeight * 0.85).clamp(42.0, 68.0);
+    final gap = (size.width * 0.035).clamp(8.0, 16.0);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          color: backgroundColor,
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(24),
+              bottomRight: Radius.circular(24),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 14,
+                spreadRadius: 1,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          padding: EdgeInsets.symmetric(
+            vertical: 14,
+            horizontal: horizontal,
+          ),
           child: SafeArea(
             bottom: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logos row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
-                      height: 70,
-                      child: Image.asset(
-                        'assets/images/psg_ims.png',
-                        fit: BoxFit.contain,
+                    Flexible(
+                      flex: 1,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: SizedBox(
+                          height: logoHeight,
+                          child: Image.asset(
+                            'assets/images/psg_ims.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: gap),
                     Container(
                       width: 1,
-                      height: 70,
-                      color: Colors.grey,
+                      height: dividerHeight,
+                      color: Colors.grey.shade300,
                     ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      height: 70,
-                      child: Image.asset(
-                        'assets/images/psg_logo_2.jpg.jpeg',
-                        fit: BoxFit.contain,
+                    SizedBox(width: gap),
+                    Flexible(
+                      flex: 1,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          height: logoHeight,
+                          child: Image.asset(
+                            'assets/images/psg_logo_2.jpg.jpeg',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Page title
+                const SizedBox(height: 12),
                 Text(
                   pageTitle,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                     color: Colors.black87,
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        const Divider(
-          height: 1,
-          thickness: 1,
-          color: Colors.grey,
         ),
       ],
     );
