@@ -11,6 +11,13 @@ const dosageScheduleSchema = z.object({
   sunday: z.number().default(0)
 }).optional()
 
+const ddmmyyyy = z.string("Therapy_date Should be a valid date")
+  .regex(/^\d{2}-\d{2}-\d{4}$/ , "Date must be in DD-MM-YYYY format")
+  .transform((val) => {
+    const [day, month, year] = val.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  })
+
 const medicalHistorySchema = z.object({
   diagnosis: z.string().optional(),
   duration_value: z.number().optional(),
@@ -27,9 +34,7 @@ export const createPatient = z.object({
     target_inr_min: z.number("target_inr_min should be a number").optional(),
     target_inr_max: z.number("target_inr_max should be a number").optional(),
     therapy: z.enum(therapy_drug, "Therapy Drug Should only Take The given Drug Values").optional(),
-    therapy_start_date: z.string("Therapy_date Should be a valid date")
-      .transform((val) => new Date(val))
-      .optional(),
+    therapy_start_date: ddmmyyyy.optional(),
     prescription: dosageScheduleSchema,
     medical_history: z.array(medicalHistorySchema).optional(),
     kin_name: z.string("kin_name should be string").optional(),

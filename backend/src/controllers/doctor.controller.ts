@@ -111,19 +111,63 @@ export const editPatientDosage = asyncHandler(async (req: Request, res: Response
 })
 
 export const getReports = asyncHandler(async (req: Request, res: Response) => {
+  const { op_num } = req.params
+  
+  const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
+  if (!patientUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+  }
 
+  const patient = await PatientProfile.findById(patientUser.profile_id).select('inr_history')
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'INR reports fetched successfully', { inr_history: patient?.inr_history || [] }))
 })
 
 export const updateNextReview = asyncHandler(async (req: Request, res: Response) => {
+  const { date } = req.body
+  const { op_num } = req.params
+  const dateRegex = /^\d{2}-\d{2}-\d{4}$/
+
+  if (typeof date !== 'string' || !dateRegex.test(date)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Date must be in DD-MM-YYYY format')
+  }
+
+  const [day, month, year] = date.split('-').map(Number)
+  const parsedDate = new Date(year, month - 1, day)
   
+  const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
+  if (!patientUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+  }
+
+  const patient = await PatientProfile.findByIdAndUpdate(
+    patientUser.profile_id,
+    { 'medical_config.next_review_date': parsedDate },
+    { new: true }
+  )
+
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Next review date updated successfully', { patient }))
 })
 
-export const addInstructions = asyncHandler(async (req: Request, res: Response) => {
+export const UpdateInstructions = asyncHandler(async (req: Request, res: Response) => {
+  const { instructions } = req.body
+  const { op_num } = req.params
 
-})
+  if (!Array.isArray(instructions) || !instructions.every(instr => typeof instr === 'string')) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Instructions must be an array of strings')
+  }
 
-export const getInstructions = asyncHandler(async (req: Request, res: Response) => {
+  const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
+  if (!patientUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+  }
+  
+  const patient = await PatientProfile.findByIdAndUpdate(
+    patientUser.profile_id,
+    { 'medical_config.instructions': instructions },
+    { new: true }
+  )
 
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Instructions updated successfully', { patient }))
 })
 
 export const getProfile = asyncHandler(async (req: Request, res: Response) => {
