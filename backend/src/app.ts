@@ -7,6 +7,7 @@ import { ApiResponse } from "./utils";
 import { StatusCodes } from "http-status-codes";
 import morgan from "morgan";
 import logger from "./utils/logger";
+import cors from "cors";
 
 const app = express();
 
@@ -20,6 +21,13 @@ app.use(morgan('dev', {
 
 app.use(helmet());
 app.use(limiter);
+
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+}));
 
 app.use(express.json());
 

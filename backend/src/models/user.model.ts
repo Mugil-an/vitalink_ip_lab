@@ -1,6 +1,5 @@
 import { generateSalt, hashPassword } from "@src/utils";
 import { UserType } from "@src/validators";
-import { NextFunction } from "express";
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema({
@@ -30,24 +29,24 @@ const UserSchema = new mongoose.Schema({
   },
   user_type_model: {
     type: String,
-    required: true,
+    required: [true, "user_type_model is required"],
   },
   is_active: { type: Boolean, default: true },
 }, { timestamps: true });
 
-UserSchema.pre('save', function () {
+UserSchema.pre('validate', async function () {
   const map: Record<string, string> = {
     ADMIN: 'AdminProfile',
     DOCTOR: 'DoctorProfile',
     PATIENT: 'PatientProfile',
   }
-  this.user_type_model = map[this.user_type]
-})
 
-UserSchema.pre("save", async function (next: NextFunction) {
-  if (!this.isModified('password')) { return next(); }
-  this.salt = generateSalt();
-  this.password = await hashPassword(this.password, this.salt);
+  this.user_type_model = map[this.user_type]
+
+  if (this.isModified('password')) {
+    this.salt = generateSalt()
+    this.password = await hashPassword(this.password, this.salt)
+  }
 })
 
 UserSchema.methods.toJSON = function () {

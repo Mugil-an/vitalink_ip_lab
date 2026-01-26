@@ -13,6 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
@@ -29,6 +30,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/express-rate-limit": "^6.0.2",
     "@types/helmet": "^4.0.0",

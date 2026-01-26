@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VitaLink Admin | Doctors</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+  <script>
+    if (typeof window.jQuery === 'undefined') {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
+  <script defer src="../common.js"></script>
+  <script defer src="./doctors.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand">VitaLink Admin</div>
+    <div class="status" id="auth-status"></div>
+    <nav>
+      <a href="doctors.html" class="active">Doctors</a>
+      <a href="patients.html">Patients</a>
+      <a href="reassign.html">Reassign</a>
+      <button class="ghost" id="logout">Logout</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="toolbar">
+        <h2>Doctors</h2>
+        <button id="refresh-doctors">Refresh</button>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <h3>Create Doctor</h3>
+          <form id="create-doctor-form">
+            <label>Login ID<input name="login_id" required /></label>
+            <label>Name<input name="name" required /></label>
+            <label>Department<input name="department" required /></label>
+            <label>Password<input name="password" type="password" required /></label>
+            <label>Contact Number<input name="contact_number" /></label>
+            <button type="submit">Create Doctor</button>
+            <div class="message" data-msg="doctor"></div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h3>Existing Doctors</h3>
+          <div id="doctor-list" class="list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

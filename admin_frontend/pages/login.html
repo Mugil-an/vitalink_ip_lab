@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VitaLink Admin | Login</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+  <script>
+    if (typeof window.jQuery === 'undefined') {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
+  <script defer src="../common.js"></script>
+  <script defer src="./login.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand">VitaLink Admin</div>
+    <div class="status" id="auth-status">Please sign in</div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Admin Login</h2>
+      <form id="login-form">
+        <label>Login ID
+          <input type="text" name="login_id" required />
+        </label>
+        <label>Password
+          <input type="password" name="password" required />
+        </label>
+        <button type="submit">Sign In</button>
+      </form>
+      <div class="message" id="login-message"></div>
+    </section>
+  </main>
+</body>
+</html>
