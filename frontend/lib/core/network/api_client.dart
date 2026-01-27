@@ -1,4 +1,4 @@
-// import 'dart:convert';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:frontend/core/constants/strings.dart';
@@ -54,6 +54,44 @@ class ApiClient {
       final response = await _dio.get<Map<String, dynamic>>(
         path,
         queryParameters: queryParameters,
+        options: Options(headers: headers),
+      );
+      return _normalizeResponse(response);
+    } on DioException catch (e) {
+      throw ApiException(_extractMessage(e), statusCode: e.response?.statusCode);
+    }
+  }
+
+
+
+  Future<Map<String, dynamic>> put(
+    String path, {
+    Map<String, dynamic>? data,
+    bool authenticated = true,
+  }) async {
+    try {
+      final headers = await _buildHeaders(includeAuth: authenticated);
+      final response = await _dio.put<Map<String, dynamic>>(
+        path,
+        data: data,
+        options: Options(headers: headers),
+      );
+      return _normalizeResponse(response);
+    } on DioException catch (e) {
+      throw ApiException(_extractMessage(e), statusCode: e.response?.statusCode);
+    }
+  }
+
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? data,
+    bool authenticated = true,
+  }) async {
+    try {
+      final headers = await _buildHeaders(includeAuth: authenticated);
+      final response = await _dio.patch<Map<String, dynamic>>(
+        path,
+        data: data,
         options: Options(headers: headers),
       );
       return _normalizeResponse(response);

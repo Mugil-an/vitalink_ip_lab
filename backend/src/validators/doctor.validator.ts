@@ -11,18 +11,33 @@ const dosageScheduleSchema = z.object({
   sunday: z.number().default(0)
 }).optional()
 
-const ddmmyyyy = z.string("Therapy_date Should be a valid date")
-  .regex(/^\d{2}-\d{2}-\d{4}$/ , "Date must be in DD-MM-YYYY format")
-  .transform((val) => {
-    const [day, month, year] = val.split('-').map(Number)
-    return new Date(year, month - 1, day)
-  })
+const ddmmyyyy = z.preprocess((arg) => {
+  if (arg === null || arg === undefined || arg === '') return undefined;
+  if (arg instanceof Date) return arg;
+  if (typeof arg === 'string') {
+    const isoDate = new Date(arg);
+    if (!isNaN(isoDate.getTime())) return isoDate;
+
+    const ddmmyyyyMatch = arg.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (ddmmyyyyMatch) {
+      const [, day, month, year] = ddmmyyyyMatch;
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    
+    const yyyymmddMatch = arg.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (yyyymmddMatch) {
+      const [, year, month, day] = yyyymmddMatch;
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+  }
+  return undefined;
+}, z.date().optional())
 
 const medicalHistorySchema = z.object({
   diagnosis: z.string().optional(),
   duration_value: z.number().optional(),
   duration_unit: z.enum(['Days', 'Weeks', 'Months', 'Years']).optional(),
-})
+});
 
 export const createPatient = z.object({
   body: z.object({

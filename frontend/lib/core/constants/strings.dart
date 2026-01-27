@@ -10,6 +10,8 @@ class AppStrings {
 
 	/// Doctor endpoints.
 	static const String doctorPatientsPath = '/api/doctors/patients';
+	static const String doctorProfilePath = '/api/doctors/profile';
+	static const String doctorGetDoctorsPath = '/api/doctors/doctors';
 
 	/// Secure storage keys.
 	static const String tokenKey = 'auth_token';
