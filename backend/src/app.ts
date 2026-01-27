@@ -14,7 +14,7 @@ const app = express();
 app.use(morgan('dev', {
   stream: {
     write: message => {
-      logger.info(message);
+      logger.info(message.trim());
     }
   }
 }));

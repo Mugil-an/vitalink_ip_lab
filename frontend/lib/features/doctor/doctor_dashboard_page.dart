@@ -6,6 +6,8 @@ import 'package:frontend/features/doctor/data/doctor_repository.dart';
 import 'package:frontend/features/doctor/models/patient_model.dart';
 import 'package:styled_widget/styled_widget.dart';
 import 'package:frontend/features/doctor/add_patient_page.dart';
+import 'package:frontend/features/doctor/doctor_profile_page.dart';
+import 'package:frontend/features/doctor/view_patient_page.dart';
 
 class DoctorDashboardPage extends StatefulWidget {
   const DoctorDashboardPage({super.key});
@@ -75,11 +77,17 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
                 case 1:
                   return const AddPatientForm();
                 case 2:
-                  return const _PlaceholderPage(label: 'Patients');
+                  return _PatientsView(
+                    repository: _doctorRepository,
+                    isTableView: _isTableView,
+                    onToggleView: (table) => setState(() => _isTableView = table),
+                    searchController: _searchController,
+                    filterPatients: _filteredPatients,
+                  );
                 case 3:
                   return const _PlaceholderPage(label: 'Reports');
                 case 4:
-                  return const _PlaceholderPage(label: 'Profile');
+                  return const DoctorProfilePage();
                 case 0:
                 default:
                   return _PatientsView(
@@ -268,8 +276,12 @@ class _CardView extends StatelessWidget {
     if (patients.isEmpty) return const _EmptyState();
     return Column(
       children: [
-        for (final patient in patients)
-          _PatientCard(patient: patient)
+        for (int i = 0; i < patients.length; i++)
+          _PatientCard(
+            patient: patients[i],
+            allPatients: patients,
+            index: i,
+          )
               .animate(const Duration(milliseconds: 300), Curves.easeOut)
               .padding(bottom: 12),
       ],
@@ -292,15 +304,36 @@ class _TableView extends StatelessWidget {
           DataColumn(label: Text('OP #')),
           DataColumn(label: Text('Age')),
           DataColumn(label: Text('Gender')),
+          DataColumn(label: Text('Action')),
         ],
         rows: patients
+            .asMap()
+            .entries
             .map(
-              (p) => DataRow(
+              (entry) => DataRow(
                 cells: [
-                  DataCell(Text(p.name)),
-                  DataCell(Text(p.opNumber ?? '-')),
-                  DataCell(Text(p.age?.toString() ?? '-')),
-                  DataCell(Text(p.gender ?? '-')),
+                  DataCell(Text(entry.value.name)),
+                  DataCell(Text(entry.value.opNumber ?? '-')),
+                  DataCell(Text(entry.value.age?.toString() ?? '-')),
+                  DataCell(Text(entry.value.gender ?? '-')),
+                  DataCell(
+                    TextButton(
+                      onPressed: entry.value.opNumber != null
+                          ? () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ViewPatientPage(
+                                    opNumber: entry.value.opNumber!,
+                                    allPatients: patients,
+                                    initialIndex: entry.key,
+                                  ),
+                                ),
+                              );
+                            }
+                          : null,
+                      child: const Text('View'),
+                    ),
+                  ),
                 ],
               ),
             )
@@ -352,41 +385,64 @@ class _EmptyState extends StatelessWidget {
 
 class _PatientCard extends StatelessWidget {
   final PatientModel patient;
+  final List<PatientModel> allPatients;
+  final int index;
 
-  const _PatientCard({required this.patient});
+  const _PatientCard({
+    required this.patient,
+    required this.allPatients,
+    required this.index,
+  });
+
+  void _navigateToPatient(BuildContext context) {
+    if (patient.opNumber != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ViewPatientPage(
+            opNumber: patient.opNumber!,
+            allPatients: allPatients,
+            initialIndex: index,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return <Widget>[
-      Text(
-        patient.name,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87),
-      ),
-      const SizedBox(height: 4),
-      Text('OP #: ${patient.opNumber ?? 'N/A'}', style: const TextStyle(color: Colors.black54, fontSize: 12)),
-      Text('Age: ${patient.age ?? '-'}, Gender: ${patient.gender ?? '-'}', style: const TextStyle(color: Colors.black54, fontSize: 12)),
-      const SizedBox(height: 10),
-      Align(
-        alignment: Alignment.centerRight,
-        child: TextButton(
-          onPressed: () {},
-          child: const Text('Show Options'),
+    return GestureDetector(
+      onTap: () => _navigateToPatient(context),
+      child: <Widget>[
+        Text(
+          patient.name,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87),
         ),
-      ),
-    ]
-        .toColumn(crossAxisAlignment: CrossAxisAlignment.start)
-        .padding(all: 14)
-        .decorated(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        );
+        const SizedBox(height: 4),
+        Text('OP #: ${patient.opNumber ?? 'N/A'}', style: const TextStyle(color: Colors.black54, fontSize: 12)),
+        Text('Age: ${patient.age ?? '-'}, Gender: ${patient.gender ?? '-'}', style: const TextStyle(color: Colors.black54, fontSize: 12)),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => _navigateToPatient(context),
+            child: const Text('View Details'),
+          ),
+        ),
+      ]
+          .toColumn(crossAxisAlignment: CrossAxisAlignment.start)
+          .padding(all: 14)
+          .decorated(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+    );
   }
 }
 

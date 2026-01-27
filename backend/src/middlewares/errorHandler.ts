@@ -4,11 +4,18 @@ import { ZodError } from "zod";
 import ApiError from "../utils/ApiError";
 import ApiResponse from "../utils/ApiResponse";
 import { StatusCodes } from "http-status-codes";
+import logger from "@src/utils/logger";
 
 const errorHandler: ErrorRequestHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ZodError) {
     const errors = err.issues.map((issue) => ({ message: issue.message }))
+    logger.error(`Validation Error: ${JSON.stringify(errors, null, 2)}`)
     return res.status(StatusCodes.BAD_REQUEST).json(new ApiResponse(StatusCodes.BAD_REQUEST, 'Validation failed', { errors }))
+  }
+
+  if (err instanceof mongoose.Error.CastError) {
+    const castDetails = { field: err.path, value: err.value }
+    return res.status(StatusCodes.BAD_REQUEST).json(new ApiResponse(StatusCodes.BAD_REQUEST, 'Invalid value for field', castDetails))
   }
 
   let error = err;

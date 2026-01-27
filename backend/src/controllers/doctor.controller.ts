@@ -8,7 +8,26 @@ import type { CreatePatientInput } from '@src/validators/doctor.validator'
 export const getPatients = asyncHandler(async (req: Request, res: Response) => {
   const { user_id } = req.user
   const doctor = await User.findById(user_id)
-  const patients = await PatientProfile.find({ assigned_doctor_id: doctor?.profile_id })
+  const patientProfiles = await PatientProfile.find({ assigned_doctor_id: doctor?.profile_id })
+  
+  // Get login_ids for each patient profile
+  const patientUsers = await User.find({ 
+    profile_id: { $in: patientProfiles.map(p => p._id) },
+    user_type: UserType.PATIENT 
+  })
+  
+  // Create a map of profile_id to login_id
+  const profileToLoginId = new Map<string, string>()
+  patientUsers.forEach(u => {
+    profileToLoginId.set(u.profile_id?.toString() ?? '', u.login_id)
+  })
+  
+  // Add login_id to each patient profile
+  const patients = patientProfiles.map(p => ({
+    ...p.toObject(),
+    login_id: profileToLoginId.get(p._id.toString()) ?? null
+  }))
+  
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Patients fetched successfully", { patients }))
 })
 
@@ -42,6 +61,18 @@ export const addPatient = asyncHandler(async (req: Request<{}, {}, CreatePatient
     throw new ApiError(StatusCodes.CONFLICT, 'Patient with this OP number already exists')
   }
 
+  let parsedTherapyStartDate: Date | undefined = undefined;
+  if (therapy_start_date) {
+    if (therapy_start_date instanceof Date) {
+      parsedTherapyStartDate = therapy_start_date;
+    } else if (typeof therapy_start_date === 'string') {
+      parsedTherapyStartDate = new Date(therapy_start_date);
+      if (isNaN(parsedTherapyStartDate.getTime())) {
+        parsedTherapyStartDate = undefined;
+      }
+    }
+  }
+
   const patientProfile = await PatientProfile.create({
     assigned_doctor_id: doctorUser.profile_id,
     demographics: {
@@ -53,7 +84,7 @@ export const addPatient = asyncHandler(async (req: Request<{}, {}, CreatePatient
     },
     medical_config: {
       therapy_drug: therapy,
-      therapy_start_date: therapy_start_date ?? undefined,
+      therapy_start_date: parsedTherapyStartDate,
       target_inr: {
         min: target_inr_min ?? 2.0,
         max: target_inr_max ?? 3.0,
