@@ -1,33 +1,33 @@
 import { Request, Response } from 'express'
 import { ApiError, ApiResponse, asyncHandler } from '@src/utils'
 import { StatusCodes } from 'http-status-codes'
-import { PatientProfile, User } from '@src/models'
+import { DoctorProfile, PatientProfile, User } from '@src/models'
 import { UserType } from '@src/validators'
-import type { CreatePatientInput } from '@src/validators/doctor.validator'
+import type { CreatePatientInput, UpdateProfileInput } from '@src/validators/doctor.validator'
 
 export const getPatients = asyncHandler(async (req: Request, res: Response) => {
   const { user_id } = req.user
   const doctor = await User.findById(user_id)
   const patientProfiles = await PatientProfile.find({ assigned_doctor_id: doctor?.profile_id })
-  
+
   // Get login_ids for each patient profile
-  const patientUsers = await User.find({ 
+  const patientUsers = await User.find({
     profile_id: { $in: patientProfiles.map(p => p._id) },
-    user_type: UserType.PATIENT 
+    user_type: UserType.PATIENT
   })
-  
+
   // Create a map of profile_id to login_id
   const profileToLoginId = new Map<string, string>()
   patientUsers.forEach(u => {
     profileToLoginId.set(u.profile_id?.toString() ?? '', u.login_id)
   })
-  
+
   // Add login_id to each patient profile
   const patients = patientProfiles.map(p => ({
     ...p.toObject(),
     login_id: profileToLoginId.get(p._id.toString()) ?? null
   }))
-  
+
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Patients fetched successfully", { patients }))
 })
 
@@ -143,7 +143,7 @@ export const editPatientDosage = asyncHandler(async (req: Request, res: Response
 
 export const getReports = asyncHandler(async (req: Request, res: Response) => {
   const { op_num } = req.params
-  
+
   const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
   if (!patientUser) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
@@ -164,7 +164,7 @@ export const updateNextReview = asyncHandler(async (req: Request, res: Response)
 
   const [day, month, year] = date.split('-').map(Number)
   const parsedDate = new Date(year, month - 1, day)
-  
+
   const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
   if (!patientUser) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
@@ -191,7 +191,7 @@ export const UpdateInstructions = asyncHandler(async (req: Request, res: Respons
   if (!patientUser) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
   }
-  
+
   const patient = await PatientProfile.findByIdAndUpdate(
     patientUser.profile_id,
     { 'medical_config.instructions': instructions },
@@ -213,6 +213,21 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 
   const patientsCount = await PatientProfile.countDocuments({ assigned_doctor_id: doctor.profile_id })
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Profile fetched successfully', { doctor, patients_count: patientsCount }))
+})
+
+export const UpdateProfile = asyncHandler(async (req: Request<{}, {}, UpdateProfileInput["body"]>, res: Response) => {
+  const { name, contact_number, department } = req.body
+  const { user_id } = req.user
+  const doctorUser = await User.findById(user_id)
+  if (!doctorUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Doctor not found')
+  }
+  const updatedProfile = await DoctorProfile.findByIdAndUpdate(
+    doctorUser.profile_id,
+    { name, contact_number, department },
+    { new: true }
+  )
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Profile updated successfully'))
 })
 
 export const getDoctors = asyncHandler(async (req: Request, res: Response) => {

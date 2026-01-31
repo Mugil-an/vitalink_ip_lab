@@ -77,16 +77,8 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
                 case 1:
                   return const AddPatientForm();
                 case 2:
-                  return _PatientsView(
-                    repository: _doctorRepository,
-                    isTableView: _isTableView,
-                    onToggleView: (table) => setState(() => _isTableView = table),
-                    searchController: _searchController,
-                    filterPatients: _filteredPatients,
-                  );
-                case 3:
                   return const _PlaceholderPage(label: 'Reports');
-                case 4:
+                case 3:
                   return const DoctorProfilePage();
                 case 0:
                 default:
@@ -110,14 +102,12 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
       case 1:
         return '@ Add Patient Page';
       case 2:
-        return '@ Patients';
-      case 3:
         return '@ Reports';
-      case 4:
+      case 3:
         return '@ Profile';
       case 0:
       default:
-        return '@ Doctor Dashboard';
+        return '@ Patients';
     }
   }
 }

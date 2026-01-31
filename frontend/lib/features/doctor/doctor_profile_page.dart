@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 import 'package:frontend/core/di/app_dependencies.dart';
+import 'package:frontend/core/storage/secure_storage.dart';
+import 'package:frontend/app/routers.dart';
 import 'package:frontend/features/doctor/data/doctor_repository.dart';
 import 'package:frontend/features/doctor/models/doctor_profile_model.dart';
-import 'package:styled_widget/styled_widget.dart';
 
 class DoctorProfilePage extends StatelessWidget {
   const DoctorProfilePage({super.key});
@@ -34,7 +35,10 @@ class DoctorProfilePage extends StatelessWidget {
               if (query.isError)
                 _ErrorWidget(error: query.error.toString()),
               if (query.isSuccess && query.data != null)
-                _ProfileContent(profile: query.data!),
+                _ProfileContent(
+                  profile: query.data!,
+                  onProfileUpdated: () => query.refetch(),
+                ),
             ],
           ),
         );
@@ -45,8 +49,12 @@ class DoctorProfilePage extends StatelessWidget {
 
 class _ProfileContent extends StatelessWidget {
   final DoctorProfileModel profile;
+  final VoidCallback onProfileUpdated;
 
-  const _ProfileContent({required this.profile});
+  const _ProfileContent({
+    required this.profile,
+    required this.onProfileUpdated,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +146,10 @@ class _ProfileContent extends StatelessWidget {
         const SizedBox(height: 24),
 
         // Action Buttons
-        _ActionButtons(),
+        _ActionButtons(
+          profile: profile,
+          onProfileUpdated: onProfileUpdated,
+        ),
       ],
     );
   }
@@ -322,7 +333,13 @@ class _DetailRow extends StatelessWidget {
 }
 
 class _ActionButtons extends StatelessWidget {
-  const _ActionButtons();
+  final DoctorProfileModel profile;
+  final VoidCallback onProfileUpdated;
+
+  const _ActionButtons({
+    required this.profile,
+    required this.onProfileUpdated,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -331,8 +348,17 @@ class _ActionButtons extends StatelessWidget {
       children: [
         ElevatedButton.icon(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Edit Profile - Coming Soon')),
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => _EditProfileModal(
+                profile: profile,
+                onSuccess: () {
+                  Navigator.of(ctx).pop();
+                  onProfileUpdated();
+                },
+              ),
             );
           },
           icon: const Icon(Icons.edit),
@@ -348,23 +374,392 @@ class _ActionButtons extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Settings - Coming Soon')),
-            );
-          },
-          icon: const Icon(Icons.settings),
-          label: const Text('Settings'),
+          onPressed: () => _showLogoutConfirmation(context),
+          icon: const Icon(Icons.logout),
+          label: const Text('Logout'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFFF7643),
+            foregroundColor: Colors.red,
+            side: const BorderSide(color: Colors.red, width: 1.5),
             padding: const EdgeInsets.symmetric(vertical: 14),
-            side: const BorderSide(color: Color(0xFFFF7643), width: 1.5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await _performLogout(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performLogout(BuildContext context) async {
+    final SecureStorage secureStorage = AppDependencies.secureStorage;
+    
+    // Clear the stored token and user data
+    await secureStorage.clearAll();
+    
+    // Navigate to login page and clear navigation stack
+    if (context.mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.login,
+        (route) => false,
+      );
+    }
+  }
+}
+
+class _EditProfileModal extends StatefulWidget {
+  final DoctorProfileModel profile;
+  final VoidCallback onSuccess;
+
+  const _EditProfileModal({
+    required this.profile,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_EditProfileModal> createState() => _EditProfileModalState();
+}
+
+class _EditProfileModalState extends State<_EditProfileModal> {
+  final _formKey = GlobalKey<FormState>();
+  final DoctorRepository _repository = AppDependencies.doctorRepository;
+  
+  late final TextEditingController _nameController;
+  late final TextEditingController _departmentController;
+  late final TextEditingController _contactController;
+  
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.profile.name);
+    _departmentController = TextEditingController(text: widget.profile.department);
+    _contactController = TextEditingController(text: widget.profile.contactNumber ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _departmentController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final data = <String, dynamic>{};
+      
+      if (_nameController.text.trim() != widget.profile.name) {
+        data['name'] = _nameController.text.trim();
+      }
+      if (_departmentController.text.trim() != widget.profile.department) {
+        data['department'] = _departmentController.text.trim();
+      }
+      if (_contactController.text.trim() != (widget.profile.contactNumber ?? '')) {
+        data['contact_number'] = _contactController.text.trim();
+      }
+
+      if (data.isEmpty) {
+        widget.onSuccess();
+        return;
+      }
+
+      await _repository.updateProfile(data);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated successfully'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+        widget.onSuccess();
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: bottomInset),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF7643).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.edit,
+                        color: Color(0xFFFF7643),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Edit Profile',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Update your profile information',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: Color(0xFF6B7280)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                
+                // Error message
+                if (_error != null) ...[  
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                
+                // Name field
+                _buildTextField(
+                  controller: _nameController,
+                  label: 'Name',
+                  icon: Icons.person_outline,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Name is required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Department field
+                _buildTextField(
+                  controller: _departmentController,
+                  label: 'Department',
+                  icon: Icons.business_outlined,
+                ),
+                const SizedBox(height: 16),
+                
+                // Contact field
+                _buildTextField(
+                  controller: _contactController,
+                  label: 'Contact Number',
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && value.length != 10) {
+                      return 'Contact number must be 10 digits';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF6B7280),
+                          side: const BorderSide(color: Color(0xFFE5E7EB)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF7643),
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFFFFB99A),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Save Changes'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: const TextStyle(
+        fontSize: 15,
+        color: Color(0xFF1F2937),
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(
+          color: Color(0xFF6B7280),
+          fontSize: 14,
+        ),
+        prefixIcon: Icon(icon, color: const Color(0xFF9CA3AF), size: 22),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFFF7643), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFDC2626)),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
     );
   }
 }

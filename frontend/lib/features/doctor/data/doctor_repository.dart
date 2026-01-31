@@ -60,4 +60,8 @@ class DoctorRepository {
     final doctors = response['doctors'];
     return doctors is List ? doctors : [];
   }
+
+  Future<void> updateProfile(Map<String, dynamic> data) async {
+    await _apiClient.put(AppStrings.doctorProfilePath, data: data);
+  }
 }

@@ -235,17 +235,12 @@ class _AddPatientFormState extends State<AddPatientForm> {
                             const SizedBox(height: 12),
                             _medicalHistoryCard(),
                             const SizedBox(height: 14),
-                            _buildTextField(
-                              _therapyStartCtrl,
-                              'Therapy Start Date',
+                            _buildDateField(
+                              controller: _therapyStartCtrl,
+                              label: 'Therapy Start Date',
                               hint: 'dd-mm-yyyy',
                               isRequired: true,
-                              readOnly: true,
                               onTap: _pickTherapyDate,
-                              suffix: IconButton(
-                                icon: const Icon(Icons.calendar_today_outlined, color: Color(0xFF6B7280)),
-                                onPressed: _pickTherapyDate,
-                              ),
                             ),
                             const SizedBox(height: 10),
                             _sectionTitle('Prescription *'),
@@ -387,6 +382,53 @@ class _AddPatientFormState extends State<AddPatientForm> {
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+      ],
+    ).padding(bottom: 12);
+  }
+
+  Widget _buildDateField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    bool isRequired = false,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isRequired ? '$label *' : label,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          readOnly: true,
+          onTap: onTap,
+          validator: (value) {
+            if (isRequired && (value == null || value.trim().isEmpty)) {
+              return '$label is required';
+            }
+            return null;
+          },
+          decoration: InputDecoration(
+            hintText: hint,
+            suffixIcon: const Icon(Icons.calendar_today, color: Color(0xFF6B7280)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF6B5FB3)),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),

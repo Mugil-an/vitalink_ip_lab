@@ -23,7 +23,7 @@ const ddmmyyyy = z.preprocess((arg) => {
       const [, day, month, year] = ddmmyyyyMatch;
       return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     }
-    
+
     const yyyymmddMatch = arg.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (yyyymmddMatch) {
       const [, year, month, day] = yyyymmddMatch;
@@ -59,4 +59,15 @@ export const createPatient = z.object({
 })
 
 export type CreatePatientInput = z.infer<typeof createPatient>
+
+
+export const updateProfile = z.object({
+  body: z.object({
+    name: z.string("Name should be a String").nonempty("Name Should Not be Empty").optional(),
+    department: z.string("Department should be a String").optional(),
+    contact_number: z.string("Contact number should be a string").length(10, "Contact number must be exactly 10 digits").optional(),
+  }).strict()
+})
+
+export type UpdateProfileInput = z.infer<typeof updateProfile>
 
