@@ -221,7 +221,7 @@ class _DosageRow extends StatelessWidget {
         color: enabled ? const Color(0xFFF0F4FF) : const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: enabled ? const Color(0xFF6366F1).withOpacity(0.3) : const Color(0xFFE5E7EB),
+          color: enabled ? const Color(0xFF6366F1).withValues(alpha: 0.3) : const Color(0xFFE5E7EB),
         ),
       ),
       child: Row(
@@ -235,7 +235,7 @@ class _DosageRow extends StatelessWidget {
               child: Switch(
                 value: enabled,
                 onChanged: isEditing ? onToggle : null,
-                activeColor: const Color(0xFF6366F1),
+                activeThumbColor: const Color(0xFF6366F1),
                 activeTrackColor: const Color(0xFFC7D2FE),
                 inactiveThumbColor: const Color(0xFF9CA3AF),
                 inactiveTrackColor: const Color(0xFFE5E7EB),
@@ -276,7 +276,7 @@ class _DosageRow extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: '0',
                   hintStyle: TextStyle(
-                    color: const Color(0xFF9CA3AF).withOpacity(0.7),
+                    color: const Color(0xFF9CA3AF).withValues(alpha: 0.7),
                   ),
                   suffixText: 'mg',
                   suffixStyle: const TextStyle(
@@ -435,7 +435,7 @@ class DosageDisplay extends StatelessWidget {
             color: isActive ? const Color(0xFFF0F4FF) : const Color(0xFFF9FAFB),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isActive ? const Color(0xFF6366F1).withOpacity(0.3) : const Color(0xFFE5E7EB),
+              color: isActive ? const Color(0xFF6366F1).withValues(alpha: 0.3) : const Color(0xFFE5E7EB),
             ),
           ),
           child: Row(

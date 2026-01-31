@@ -4,6 +4,7 @@ import { StatusCodes } from 'http-status-codes'
 import { DoctorProfile, PatientProfile, User } from '@src/models'
 import { UserType } from '@src/validators'
 import type { CreatePatientInput, UpdateProfileInput } from '@src/validators/doctor.validator'
+import mongoose from 'mongoose'
 
 export const getPatients = asyncHandler(async (req: Request, res: Response) => {
   const { user_id } = req.user
@@ -33,15 +34,22 @@ export const getPatients = asyncHandler(async (req: Request, res: Response) => {
 
 export const viewPatient = asyncHandler(async (req: Request, res: Response) => {
   const { op_num } = req.params
+  const { user_id } = req.user
   const patientUser = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
   if (!patientUser) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
   }
 
   const patient = await PatientProfile.findById(patientUser.profile_id)
+
   if (!patient) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
   }
+
+  // TODO: Check Validations
+  // if(patient.assigned_doctor_id != user_id){
+  //   throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized Patient Access')
+  // }
 
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Patient fetched successfully', { patient }))
 })
@@ -233,4 +241,16 @@ export const UpdateProfile = asyncHandler(async (req: Request<{}, {}, UpdateProf
 export const getDoctors = asyncHandler(async (req: Request, res: Response) => {
   const doctors = await User.find({ user_type: UserType.DOCTOR }).populate('profile_id', '-password -salt').lean()
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Doctors fetched successfully", { doctors }))
+})
+
+export const updateReportsInstructions = asyncHandler(async (req: Request, res: Response) => {
+  const { is_critical, notes } = req.body
+  const { report_id, op_num } = req.params
+
+  if (!mongoose.Types.ObjectId.isValid(report_id)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid report_id or op_num')
+  }
+
+  // Find if The patient is doctors
+
 })

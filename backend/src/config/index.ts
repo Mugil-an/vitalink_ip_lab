@@ -1,4 +1,3 @@
-import { ApiError } from '@src/utils'
 import 'dotenv/config'
 import type { StringValue } from 'ms'
 
@@ -9,6 +8,9 @@ interface Config {
   jwtExpiresIn: StringValue | number
   nodeEnv: string
   logLevel: string
+  accessKeyId: string
+  secretAccessKey: string
+  bucketName: string
 }
 
 function getRequiredEnv(key: string): string {
@@ -26,6 +28,9 @@ export const config: Config = {
   jwtExpiresIn: (process.env.JWT_EXPIRES_IN || '1h') as StringValue,
   nodeEnv: process.env.NODE_ENV || 'development',
   logLevel: process.env.LOG_LEVEL || 'info',
+  accessKeyId: process.env.ACCESS_KEY_ID || '',
+  secretAccessKey: process.env.SECRET_ACCESS_KEY || '',
+  bucketName: process.env.S3_BUCKET_NAME
 }
 
 

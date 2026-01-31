@@ -1,0 +1,74 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+const Color _inactiveColor = Color(0xFFB6B6B6);
+const Color _activeColor = Color(0xFFFF7643);
+
+class PatientBottomNavBar extends StatelessWidget {
+  final int currentIndex;
+  final Function(int) onTap;
+
+  const PatientBottomNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: BottomNavigationBar(
+            currentIndex: currentIndex,
+            onTap: onTap,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            elevation: 12,
+            items: [
+              _navItem(iconSvg: _homeIcon, label: 'Home'),
+              _navItem(iconSvg: _inrIcon, label: 'Update INR'),
+              _navItem(iconSvg: _dosageIcon, label: 'Dosage'),
+              _navItem(iconSvg: _recordsIcon, label: 'Notes'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  BottomNavigationBarItem _navItem({required String iconSvg, required String label}) {
+    return BottomNavigationBarItem(
+      icon: SvgPicture.string(
+        iconSvg,
+        colorFilter: const ColorFilter.mode(_inactiveColor, BlendMode.srcIn),
+      ),
+      activeIcon: SvgPicture.string(
+        iconSvg,
+        colorFilter: const ColorFilter.mode(_activeColor, BlendMode.srcIn),
+      ),
+      label: label,
+    );
+  }
+}
+
+const String _homeIcon = '''<svg width="22" height="21" viewBox="0 0 22 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M11 0.75L1.375 8.15625V19.25C1.375 19.9404 1.93464 20.5 2.625 20.5H8.9375V13.5312H13.0625V20.5H19.375C20.0654 20.5 20.625 19.9404 20.625 19.25V8.15625L11 0.75Z" fill="#B6B6B6"/>
+</svg>''';
+
+const String _inrIcon = '''<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 21L10.55 19.705C5.4 15.03 2 11.95 2 8.15C2 5.06 4.42 2.65 7.5 2.65C9.24 2.65 10.91 3.46 12 4.74C13.09 3.46 14.76 2.65 17.5 2.65C20.58 2.65 23 5.06 23 8.15C23 11.95 19.6 15.03 14.45 19.71L12 21Z" fill="#B6B6B6"/>
+</svg>''';
+
+const String _dosageIcon = '''<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3ZM11 17H9V15H11V17ZM15 17H13V15H15V17ZM11 13H9V11H11V13ZM15 13H13V11H15V13ZM11 9H9V7H11V9ZM15 9H13V7H15V9Z" fill="#B6B6B6"/>
+</svg>''';
+
+const String _recordsIcon = '''<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2ZM12 18H8V16H12V18ZM16 14H8V12H16V14ZM16 10H8V8H16V10Z" fill="#B6B6B6"/>
+</svg>''';

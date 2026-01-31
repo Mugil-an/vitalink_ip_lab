@@ -254,7 +254,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.05),
+                          color: Colors.blue.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(
@@ -368,7 +368,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
+                              color: Colors.green.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
@@ -452,8 +452,8 @@ class _PatientHomePageState extends State<PatientHomePage> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: history['status'] == 'Normal'
-                                            ? Colors.green.withOpacity(0.2)
-                                            : Colors.orange.withOpacity(0.2),
+                                            ? Colors.green.withValues(alpha: 0.2)
+                                            : Colors.orange.withValues(alpha: 0.2),
                                         borderRadius:
                                             BorderRadius.circular(6),
                                       ),
@@ -554,7 +554,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.pink.withOpacity(0.2),
+                                        color: Colors.pink.withValues(alpha: 0.2),
                                         borderRadius:
                                             BorderRadius.circular(6),
                                       ),

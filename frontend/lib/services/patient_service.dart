@@ -36,15 +36,49 @@ class PatientService {
       final response = await _dio.get('/profile');
       if (response.statusCode == 200) {
         final data = response.data['data']['patient'];
+        if (data == null || data['profile_id'] == null) {
+          throw Exception('Profile data is incomplete');
+        }
+
+        final profile = data['profile_id'] as Map<String, dynamic>;
+        final demographics = profile['demographics'] is Map ? profile['demographics'] : {};
+        final medicalConfig = profile['medical_config'] is Map ? profile['medical_config'] : {};
+        final targetInr = medicalConfig['target_inr'] is Map ? medicalConfig['target_inr'] : {};
+        
+        // Handle doctor information safely
+        String doctorName = 'Dr. Rajesh Kumar';
+        String doctorPhone = 'N/A';
+        final doctorUser = profile['assigned_doctor_id'];
+        if (doctorUser is Map) {
+          final doctorProfile = doctorUser['profile_id'];
+          if (doctorProfile is Map) {
+            doctorName = doctorProfile['name'] ?? 'Dr. Rajesh Kumar';
+            doctorPhone = doctorProfile['contact_number'] ?? 'N/A';
+          }
+        }
+
+        final nextOfKin = demographics['next_of_kin'] is Map ? demographics['next_of_kin'] : {};
+
         return {
-          'name': data['profile_id']['demographics']['name'] ?? 'Patient',
-          'opNumber': data['_id'] ?? 'N/A',
-          'age': data['profile_id']['demographics']['age'] ?? 0,
-          'gender': data['profile_id']['demographics']['gender'] ?? 'N/A',
-          'targetINR': '${data['profile_id']['medical_config']['target_inr']['min']} - ${data['profile_id']['medical_config']['target_inr']['max']}',
-          'nextReviewDate': _formatDate(data['profile_id']['medical_config']['next_review_date']),
-          'therapyDrug': data['profile_id']['medical_config']['therapy_drug'] ?? 'N/A',
-          'therapyStartDate': _formatDate(data['profile_id']['medical_config']['therapy_start_date']),
+          'name': demographics['name'] ?? 'Patient',
+          'opNumber': data['login_id'] ?? data['_id'] ?? 'N/A',
+          'age': demographics['age'] ?? 0,
+          'gender': demographics['gender'] ?? 'N/A',
+          'phone': demographics['phone'] ?? 'N/A',
+          'targetINR': '${targetInr['min'] ?? 2.0} - ${targetInr['max'] ?? 3.0}',
+          'nextReviewDate': _formatDate(medicalConfig['next_review_date']),
+          'therapyDrug': medicalConfig['therapy_drug'] ?? 'N/A',
+          'therapyStartDate': _formatDate(medicalConfig['therapy_start_date']),
+          'doctorName': doctorName,
+          'doctorPhone': doctorPhone,
+          'caregiver': nextOfKin['name'] ?? 'N/A',
+          'kinName': nextOfKin['name'] ?? 'N/A',
+          'kinRelation': nextOfKin['relation'] ?? 'N/A',
+          'kinPhone': nextOfKin['phone'] ?? 'N/A',
+          'instructions': medicalConfig['instructions'] ?? [],
+          'weeklyDosage': profile['weekly_dosage'] ?? {},
+          'healthLogs': profile['health_logs'] ?? [],
+          'medicalHistory': profile['medical_history'] ?? [],
         };
       }
       throw Exception('Failed to load profile');
@@ -53,7 +87,48 @@ class PatientService {
     }
   }
 
+  // Get missed doses
+  static Future<List<String>> getMissedDoses() async {
+    _setupInterceptors();
+    try {
+      final response = await _dio.get('/missed-doses');
+      if (response.statusCode == 200) {
+        final recent = response.data['data']['recent_missed_doses'] as List;
+        final missed = response.data['data']['missed_doses'] as List;
+        return [...recent.cast<String>(), ...missed.cast<String>()];
+      }
+      return [];
+    } on DioException catch (e) {
+      throw Exception('Error: ${e.message}');
+    }
+  }
+
   // Get INR history
+  static Future<void> submitINRReport({
+    required double inrValue,
+    required String testDate, // Expected in dd-mm-yyyy
+    String? filePath,
+  }) async {
+    _setupInterceptors();
+    try {
+      final formData = FormData.fromMap({
+        'inr_value': inrValue,
+        'test_date': testDate,
+      });
+
+      if (filePath != null) {
+        formData.files.add(MapEntry(
+          'file',
+          await MultipartFile.fromFile(filePath),
+        ));
+      }
+
+      await _dio.post('/reports', data: formData);
+    } on DioException catch (e) {
+      throw Exception('Failed to submit report: ${e.message}');
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> getINRHistory() async {
     _setupInterceptors();
     try {

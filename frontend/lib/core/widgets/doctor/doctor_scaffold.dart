@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/widgets/app_navbar.dart';
-import 'package:frontend/core/widgets/doctor_bottom_nav.dart';
+import 'package:frontend/core/widgets/common/app_navbar.dart';
+import 'package:frontend/core/widgets/doctor/doctor_bottom_nav.dart';
 
 class DoctorScaffold extends StatelessWidget {
   final String pageTitle;

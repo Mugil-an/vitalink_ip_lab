@@ -22,16 +22,16 @@ export const InrLogSchema = new Schema({
 
 export const HealthLogSchema = new Schema({
   date: { type: Date, default: Date.now },
-  type: { 
-    type: String, 
-    enum: ['SIDE_EFFECT', 'ILLNESS', 'LIFESTYLE', 'OTHER_MEDS'], 
-    required: true 
+  type: {
+    type: String,
+    enum: ['SIDE_EFFECT', 'ILLNESS', 'LIFESTYLE', 'OTHER_MEDS'],
+    required: true
   },
   description: { type: String, required: true },
-  severity: { 
-    type: String, 
-    enum: ['Normal', 'High', 'Emergency'], 
-    default: 'Normal' 
+  severity: {
+    type: String,
+    enum: ['Normal', 'High', 'Emergency'],
+    default: 'Normal'
   },
   is_resolved: { type: Boolean, default: false }
 });

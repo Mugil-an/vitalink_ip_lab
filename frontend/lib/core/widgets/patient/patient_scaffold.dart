@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/widgets/app_navbar.dart';
-import 'package:frontend/core/widgets/patient_bottom_nav.dart';
+import 'package:frontend/core/widgets/common/app_navbar.dart';
+import 'package:frontend/core/widgets/patient/patient_bottom_nav.dart';
 
 class PatientScaffold extends StatelessWidget {
   final String pageTitle;
@@ -9,6 +9,7 @@ class PatientScaffold extends StatelessWidget {
   final Function(int) onNavChanged;
   final Widget? drawer;
   final Color navbarBackgroundColor;
+  final Decoration? bodyDecoration;
 
   const PatientScaffold({
     super.key,
@@ -18,6 +19,7 @@ class PatientScaffold extends StatelessWidget {
     required this.onNavChanged,
     this.drawer,
     this.navbarBackgroundColor = Colors.white,
+    this.bodyDecoration,
   });
 
   @override
@@ -28,16 +30,19 @@ class PatientScaffold extends StatelessWidget {
         currentIndex: currentNavIndex,
         onTap: onNavChanged,
       ),
-      body: Column(
-        children: [
-          AppNavBar(
-            pageTitle: pageTitle,
-            backgroundColor: navbarBackgroundColor,
-          ),
-          Expanded(
-            child: body,
-          ),
-        ],
+      body: Container(
+        decoration: bodyDecoration,
+        child: Column(
+          children: [
+            AppNavBar(
+              pageTitle: pageTitle,
+              backgroundColor: navbarBackgroundColor,
+            ),
+            Expanded(
+              child: body,
+            ),
+          ],
+        ),
       ),
     );
   }

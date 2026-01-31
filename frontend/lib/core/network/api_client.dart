@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:frontend/core/constants/strings.dart';
 import 'package:frontend/core/storage/secure_storage.dart';

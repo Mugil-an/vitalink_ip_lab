@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
+import 'package:frontend/app/routers.dart';
 
 class PatientRecordsPage extends StatefulWidget {
   const PatientRecordsPage({super.key});
@@ -9,7 +10,7 @@ class PatientRecordsPage extends StatefulWidget {
 }
 
 class _PatientRecordsPageState extends State<PatientRecordsPage> {
-  int _currentNavIndex = 2;
+  int _currentNavIndex = 3;
   int _selectedTabIndex = 0;
 
   // Mock INR history data
@@ -104,20 +105,27 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
     return PatientScaffold(
       pageTitle: 'My Records',
       currentNavIndex: _currentNavIndex,
+      bodyDecoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFC8B5E1), Color(0xFFF8C7D7)],
+        ),
+      ),
       onNavChanged: (index) {
-        setState(() => _currentNavIndex = index);
+        if (index == _currentNavIndex) return;
         switch (index) {
           case 0:
-            Navigator.of(context).pushReplacementNamed('/patient-home');
+            Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile);
             break;
           case 1:
-            Navigator.of(context).pushReplacementNamed('/patient-appointments');
+            Navigator.of(context).pushReplacementNamed(AppRoutes.patientUpdateINR);
             break;
           case 2:
-            // Already on records
+            Navigator.of(context).pushReplacementNamed(AppRoutes.patientTakeDosage);
             break;
           case 3:
-            Navigator.of(context).pushReplacementNamed('/patient-profile');
+            // Already on records
             break;
         }
       },
@@ -280,7 +288,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
@@ -321,10 +329,10 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
                 color: record['isCritical']
-                    ? Colors.red.withOpacity(0.3)
+                    ? Colors.red.withValues(alpha: 0.3)
                     : isWithinRange
-                        ? Colors.green.withOpacity(0.2)
-                        : Colors.orange.withOpacity(0.2),
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.orange.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -351,10 +359,10 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                         ),
                         decoration: BoxDecoration(
                           color: record['isCritical']
-                              ? Colors.red.withOpacity(0.1)
+                              ? Colors.red.withValues(alpha: 0.1)
                               : isWithinRange
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.orange.withOpacity(0.1),
+                                  ? Colors.green.withValues(alpha: 0.1)
+                                  : Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -489,8 +497,8 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                             ),
                             decoration: BoxDecoration(
                               color: log['isResolved']
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.orange.withOpacity(0.1),
+                                  ? Colors.green.withValues(alpha: 0.1)
+                                  : Colors.orange.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(

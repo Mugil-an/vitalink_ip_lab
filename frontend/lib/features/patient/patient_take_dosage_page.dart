@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
+import 'package:frontend/app/routers.dart';
 
 class PatientTakeDosagePage extends StatefulWidget {
   const PatientTakeDosagePage({super.key});
@@ -81,20 +82,27 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
     return PatientScaffold(
       pageTitle: 'Dosage Management',
       currentNavIndex: _currentNavIndex,
+      bodyDecoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFC8B5E1), Color(0xFFF8C7D7)],
+        ),
+      ),
       onNavChanged: (index) {
-        setState(() => _currentNavIndex = index);
+        if (index == _currentNavIndex) return;
         switch (index) {
           case 0:
-            Navigator.of(context).pushReplacementNamed('/patient-home');
+            Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile);
             break;
           case 1:
-            Navigator.of(context).pushReplacementNamed('/patient-update-inr');
+            Navigator.of(context).pushReplacementNamed(AppRoutes.patientUpdateINR);
             break;
           case 2:
             // Already on dosage page
             break;
           case 3:
-            Navigator.of(context).pushReplacementNamed('/patient-profile');
+            Navigator.of(context).pushReplacementNamed(AppRoutes.patientRecords);
             break;
         }
       },
@@ -430,7 +438,7 @@ class _DosageCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isToday ? Colors.pink.withOpacity(0.3) : Colors.grey.shade200,
+          color: isToday ? Colors.pink.withValues(alpha: 0.3) : Colors.grey.shade200,
           width: isToday ? 2 : 1,
         ),
       ),
@@ -472,7 +480,7 @@ class _DosageCard extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: isToday ? Colors.pink.withOpacity(0.1) : null,
+                    color: isToday ? Colors.pink.withValues(alpha: 0.1) : null,
                     border: isToday
                         ? Border.all(color: Colors.pink)
                         : Border.all(color: Colors.grey.shade300),
@@ -561,10 +569,10 @@ class _MissedDoseCard extends StatelessWidget {
     return Card(
       elevation: 1,
       margin: const EdgeInsets.only(bottom: 16),
-      color: Colors.red.withOpacity(0.02),
+      color: Colors.red.withValues(alpha: 0.02),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.red.withOpacity(0.3)),
+        side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -593,7 +601,7 @@ class _MissedDoseCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
@@ -611,7 +619,7 @@ class _MissedDoseCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Divider(color: Colors.red.withOpacity(0.3)),
+            Divider(color: Colors.red.withValues(alpha: 0.3)),
             const SizedBox(height: 12),
 
             // Date and reason
@@ -629,7 +637,7 @@ class _MissedDoseCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.grey.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(

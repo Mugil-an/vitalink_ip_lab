@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/widgets/app_navbar.dart';
+import 'package:frontend/core/widgets/common/app_navbar.dart';
 
 class AppScaffold extends StatelessWidget {
   final String pageTitle;

@@ -4,10 +4,20 @@ import { StatusCodes } from 'http-status-codes'
 import { PatientProfile, User } from '@src/models'
 import { UserType } from '@src/validators'
 import type { LogInrInput, MissedDoseInput, ReportInput, TakeDosageInput } from '@src/validators/patient.validator'
+import logger from '@src/utils/logger'
+import { uploadFile } from '@src/utils/fileUpload'
 
 export const getProfile = asyncHandler(async (req: Request, res: Response) => {
-    const {user_id} = req.user
-	const user = await User.findById(user_id).populate('profile_id')
+	const { user_id } = req.user
+	const user = await User.findById(user_id).populate({
+		path: 'profile_id',
+		populate: {
+			path: 'assigned_doctor_id',
+			populate: {
+				path: 'profile_id'
+			}
+		}
+	})
 	if (!user || user.user_type !== UserType.PATIENT) {
 		throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
 	}
@@ -53,16 +63,13 @@ export const getReport = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput['body']>, res: Response) => {
-	if (!req.user) {
-		throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized')
-	}
-
-	const patientUser = await User.findById(req.user.user_id)
+	const { user_id } = req.user
+	const patientUser = await User.findById(user_id)
 	if (!patientUser || patientUser.user_type !== UserType.PATIENT) {
 		throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
 	}
 
-	const { inr_value, test_date, notes, is_critical } = req.body
+	const { inr_value, test_date } = req.body
 	const file = (req as any).file as Express.Multer.File | undefined
 
 	if (file) {
@@ -70,6 +77,13 @@ export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput
 		if (!allowed.includes(file.mimetype)) {
 			throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid file type. Only PDF, PNG, JPEG allowed')
 		}
+	}
+	let fileUrl = ''
+	try {
+		fileUrl = await uploadFile(file)
+	} catch (error) {
+		logger.error("Error While Uploading File to filebase", { error })
+		throw new ApiError(StatusCodes.INSUFFICIENT_STORAGE, "Error While Uploading report to cloud")
 	}
 
 	const patient = await PatientProfile.findByIdAndUpdate(
@@ -80,9 +94,7 @@ export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput
 					test_date,
 					uploaded_at: new Date(),
 					inr_value,
-					is_critical: is_critical ?? false,
-					notes,
-					file_url: file?.path,
+					file_url: fileUrl,
 				},
 			},
 		},
@@ -129,8 +141,8 @@ export const missedDoses = asyncHandler(async (req: Request<{}, {}, MissedDoseIn
 		}
 	})
 
-	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Missed doses calculated', 
-        { recent_missed_doses, missed_doses: remaining_missed }))
+	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Missed doses calculated',
+		{ recent_missed_doses, missed_doses: remaining_missed }))
 })
 
 export const takeDosage = asyncHandler(async (req: Request<{}, {}, TakeDosageInput['body']>, res: Response) => {
@@ -153,13 +165,13 @@ export const takeDosage = asyncHandler(async (req: Request<{}, {}, TakeDosageInp
 })
 
 function parseDDMMYYYY(date: string | Date): Date {
-    const regex = /^\d{2}-\d{2}-\d{4}$/
-    if (date instanceof Date) return date
-    if (typeof date !== 'string' || !regex.test(date)) {
-    	throw new ApiError(StatusCodes.BAD_REQUEST, 'Date must be in DD-MM-YYYY format')
-    }
-    const [day, month, year] = date.split('-').map(Number)
-    return new Date(year, month - 1, day)
+	const regex = /^\d{2}-\d{2}-\d{4}$/
+	if (date instanceof Date) return date
+	if (typeof date !== 'string' || !regex.test(date)) {
+		throw new ApiError(StatusCodes.BAD_REQUEST, 'Date must be in DD-MM-YYYY format')
+	}
+	const [day, month, year] = date.split('-').map(Number)
+	return new Date(year, month - 1, day)
 }
 
 function formatDDMMYYYY(d: Date): string {
