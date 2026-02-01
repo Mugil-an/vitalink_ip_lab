@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
 import 'package:frontend/services/patient_service.dart';
@@ -50,39 +49,33 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
     }
   }
 
-  void _showDatePicker(BuildContext context) {
-    showCupertinoModalPopup(
+  Future<void> _showDatePicker(BuildContext context) async {
+    final picked = await showDatePicker(
       context: context,
-      builder: (_) => Container(
-        height: 250,
-        color: const Color.fromARGB(255, 255, 255, 255),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            children: [
-              SizedBox(
-                height: 200,
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
-                  initialDateTime: _selectedDate,
-                  maximumDate: DateTime.now(),
-                  onDateTimeChanged: (DateTime newDate) {
-                    setState(() {
-                      _selectedDate = newDate;
-                      _testDateController.text = DateFormat('dd-MM-yyyy').format(newDate);
-                    });
-                  },
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: const Color(0xFF0084FF),
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: Colors.black87,
                 ),
-              ),
-              CupertinoButton(
-                child: const Text('OK'),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            ],
           ),
-        ),
-      ),
+          child: child!,
+        );
+      },
     );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _testDateController.text = DateFormat('dd-MM-yyyy').format(picked);
+      });
+    }
   }
 
   @override

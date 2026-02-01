@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
+import 'package:frontend/services/patient_service.dart';
+import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 
 class PatientRecordsPage extends StatefulWidget {
   const PatientRecordsPage({super.key});
@@ -10,245 +12,169 @@ class PatientRecordsPage extends StatefulWidget {
 }
 
 class _PatientRecordsPageState extends State<PatientRecordsPage> {
-  int _currentNavIndex = 3;
+  final int _currentNavIndex = 3;
   int _selectedTabIndex = 0;
-
-  // Mock INR history data
-  final List<Map<String, dynamic>> _inrHistory = [
-    {
-      'id': '1',
-      'date': DateTime.now().subtract(const Duration(days: 5)),
-      'value': 2.5,
-      'targetMin': 2.0,
-      'targetMax': 3.0,
-      'isCritical': false,
-      'notes': 'Normal range, medication working well',
-    },
-    {
-      'id': '2',
-      'date': DateTime.now().subtract(const Duration(days: 12)),
-      'value': 3.2,
-      'targetMin': 2.0,
-      'targetMax': 3.0,
-      'isCritical': false,
-      'notes': 'Slightly above target, reduce dosage slightly',
-    },
-    {
-      'id': '3',
-      'date': DateTime.now().subtract(const Duration(days: 19)),
-      'value': 1.8,
-      'targetMin': 2.0,
-      'targetMax': 3.0,
-      'isCritical': false,
-      'notes': 'Slightly below target, monitor closely',
-    },
-    {
-      'id': '4',
-      'date': DateTime.now().subtract(const Duration(days: 26)),
-      'value': 3.5,
-      'targetMin': 2.0,
-      'targetMax': 3.0,
-      'isCritical': true,
-      'notes': 'CRITICAL: INR above safe range, urgent action needed',
-    },
-  ];
-
-  // Mock health logs data
-  final List<Map<String, dynamic>> _healthLogs = [
-    {
-      'id': '1',
-      'date': DateTime.now().subtract(const Duration(days: 2)),
-      'type': 'SIDE_EFFECT',
-      'description': 'Mild bruising on arm',
-      'severity': 'Normal',
-      'isResolved': true,
-    },
-    {
-      'id': '2',
-      'date': DateTime.now().subtract(const Duration(days: 5)),
-      'type': 'ILLNESS',
-      'description': 'Common cold symptoms',
-      'severity': 'Normal',
-      'isResolved': true,
-    },
-    {
-      'id': '3',
-      'date': DateTime.now().subtract(const Duration(days: 8)),
-      'type': 'OTHER_MEDS',
-      'description': 'Started taking antibiotics for infection',
-      'severity': 'High',
-      'isResolved': false,
-    },
-    {
-      'id': '4',
-      'date': DateTime.now().subtract(const Duration(days: 15)),
-      'type': 'LIFESTYLE',
-      'description': 'Increased physical activity',
-      'severity': 'Normal',
-      'isResolved': true,
-    },
-  ];
-
-  // Mock dosage schedule
-  final Map<String, double> _weeklyDosage = {
-    'monday': 5.0,
-    'tuesday': 5.0,
-    'wednesday': 2.5,
-    'thursday': 5.0,
-    'friday': 5.0,
-    'saturday': 2.5,
-    'sunday': 5.0,
-  };
 
   @override
   Widget build(BuildContext context) {
-    return PatientScaffold(
-      pageTitle: 'My Records',
-      currentNavIndex: _currentNavIndex,
-      bodyDecoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFC8B5E1), Color(0xFFF8C7D7)],
-        ),
+    return UseQuery<Map<String, dynamic>>(
+      options: QueryOptions<Map<String, dynamic>>(
+        queryKey: const ['patient', 'records_full'],
+        queryFn: () async {
+          final profile = await PatientService.getProfile();
+          final history = await PatientService.getINRHistory();
+          return {
+            'profile': profile,
+            'history': history,
+          };
+        },
       ),
-      onNavChanged: (index) {
-        if (index == _currentNavIndex) return;
-        switch (index) {
-          case 0:
-            Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile);
-            break;
-          case 1:
-            Navigator.of(context).pushReplacementNamed(AppRoutes.patientUpdateINR);
-            break;
-          case 2:
-            Navigator.of(context).pushReplacementNamed(AppRoutes.patientTakeDosage);
-            break;
-          case 3:
-            // Already on records
-            break;
+      builder: (context, query) {
+        if (query.isLoading) {
+          return const PatientScaffold(
+            pageTitle: 'My Records',
+            currentNavIndex: 3,
+            onNavChanged: _dummyOnNavChanged,
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
-      },
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Tabs
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-              ),
-              child: Row(
+
+        if (query.isError) {
+          return PatientScaffold(
+            pageTitle: 'My Records',
+            currentNavIndex: 3,
+            onNavChanged: (index) => _handleNav(index),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTabIndex = 0),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          border: _selectedTabIndex == 0
-                              ? Border(
-                                  bottom: BorderSide(
-                                    color: Colors.pink[400]!,
-                                    width: 3,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: Text(
-                          'INR History',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _selectedTabIndex == 0
-                                ? Colors.pink[400]
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTabIndex = 1),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          border: _selectedTabIndex == 1
-                              ? Border(
-                                  bottom: BorderSide(
-                                    color: Colors.pink[400]!,
-                                    width: 3,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: Text(
-                          'Health Logs',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _selectedTabIndex == 1
-                                ? Colors.pink[400]
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTabIndex = 2),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          border: _selectedTabIndex == 2
-                              ? Border(
-                                  bottom: BorderSide(
-                                    color: Colors.pink[400]!,
-                                    width: 3,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: Text(
-                          'Dosage',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _selectedTabIndex == 2
-                                ? Colors.pink[400]
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  Text('Error: ${query.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: () => query.refetch(), child: const Text('Retry')),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+          );
+        }
 
-            // Content based on selected tab
-            if (_selectedTabIndex == 0)
-              _buildINRHistory()
-            else if (_selectedTabIndex == 1)
-              _buildHealthLogs()
-            else
-              _buildDosageSchedule(),
-          ],
+        if (!query.hasData) {
+          return const PatientScaffold(
+            pageTitle: 'My Records',
+            currentNavIndex: 3,
+            onNavChanged: _dummyOnNavChanged,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final data = query.data!;
+        final profile = data['profile'] as Map<String, dynamic>;
+        final history = data['history'] as List<Map<String, dynamic>>;
+
+        return PatientScaffold(
+          pageTitle: 'My Records',
+          currentNavIndex: _currentNavIndex,
+          bodyDecoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFC8B5E1), Color(0xFFF8C7D7)],
+            ),
+          ),
+          onNavChanged: (index) => _handleNav(index),
+          body: RefreshIndicator(
+            onRefresh: () async => query.refetch(),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Tabs
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildTabItem(0, 'INR History'),
+                        _buildTabItem(1, 'Health Logs'),
+                        _buildTabItem(2, 'Dosage'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Content based on selected tab
+                  if (_selectedTabIndex == 0)
+                    _buildINRHistory(profile, history)
+                  else if (_selectedTabIndex == 1)
+                    _buildHealthLogs(profile)
+                  else
+                    _buildDosageSchedule(profile),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static void _dummyOnNavChanged(int index) {}
+
+  void _handleNav(int index) {
+    if (index == _currentNavIndex) return;
+    switch (index) {
+      case 0:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile);
+        break;
+      case 1:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.patientUpdateINR);
+        break;
+      case 2:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.patientTakeDosage);
+        break;
+      case 3:
+        break;
+    }
+  }
+
+  Widget _buildTabItem(int index, String label) {
+    final isSelected = _selectedTabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTabIndex = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            border: isSelected
+                ? Border(
+                    bottom: BorderSide(
+                      color: Colors.pink[400]!,
+                      width: 3,
+                    ),
+                  )
+                : null,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.pink[400] : Colors.grey[600],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildINRHistory() {
+  Widget _buildINRHistory(Map<String, dynamic> profile, List<Map<String, dynamic>> history) {
+    final targetINR = profile['targetINR'] ?? '2.0 - 3.0';
+    
     return Column(
       children: [
         // Summary card
@@ -274,7 +200,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                 Row(
                   children: [
                     Text(
-                      '2.0 - 3.0',
+                      targetINR,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -318,88 +244,88 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
           ),
         ),
         const SizedBox(height: 12),
-        ..._inrHistory.map((record) {
-          final isWithinRange = record['value'] >= record['targetMin'] &&
-              record['value'] <= record['targetMax'];
+        if (history.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: Text('No INR reports found.')),
+          )
+        else
+          ...history.map((record) {
+            final status = record['status'] as String? ?? 'Normal';
+            final isCritical = status == 'High' || status == 'Low';
 
-          return Card(
-            elevation: 1,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: record['isCritical']
-                    ? Colors.red.withValues(alpha: 0.3)
-                    : isWithinRange
-                        ? Colors.green.withValues(alpha: 0.2)
-                        : Colors.orange.withValues(alpha: 0.2),
-                width: 1,
+            return Card(
+              elevation: 1,
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: isCritical
+                      ? Colors.orange.withValues(alpha: 0.3)
+                      : Colors.green.withValues(alpha: 0.2),
+                  width: 1,
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _formatDate(record['date']),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: record['isCritical']
-                              ? Colors.red.withValues(alpha: 0.1)
-                              : isWithinRange
-                                  ? Colors.green.withValues(alpha: 0.1)
-                                  : Colors.orange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'INR: ${record['value']}',
-                          style: TextStyle(
-                            fontSize: 13,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          record['date'] ?? 'N/A',
+                          style: const TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: record['isCritical']
-                                ? Colors.red[700]
-                                : isWithinRange
-                                    ? Colors.green[700]
-                                    : Colors.orange[700],
+                            color: Colors.black87,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (record['notes'] != null)
-                    Text(
-                      record['notes'],
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[700],
-                      ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isCritical
+                                ? Colors.orange.withValues(alpha: 0.1)
+                                : Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'INR: ${record['inr']}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isCritical ? Colors.orange[700] : Colors.green[700],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                ],
+                    const SizedBox(height: 8),
+                    if (record['notes'] != null && record['notes'] != 'No notes')
+                      Text(
+                        record['notes'],
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
       ],
     );
   }
 
-  Widget _buildHealthLogs() {
-    if (_healthLogs.isEmpty) {
+  Widget _buildHealthLogs(Map<String, dynamic> profile) {
+    final logs = profile['health_logs'] as List? ?? [];
+
+    if (logs.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 40),
@@ -433,7 +359,12 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
           ),
         ),
         const SizedBox(height: 16),
-        ..._healthLogs.map((log) {
+        ...logs.map((log) {
+          final type = log['type'] ?? 'OTHER';
+          final severity = log['severity'] ?? 'Normal';
+          final isResolved = log['is_resolved'] ?? true;
+          final dateStr = PatientService.formatDate(log['date']);
+
           return Card(
             elevation: 1,
             margin: const EdgeInsets.only(bottom: 12),
@@ -452,7 +383,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _getLogTypeLabel(log['type']),
+                            _getLogTypeLabel(type),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -460,7 +391,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                             ),
                           ),
                           Text(
-                            _formatDate(log['date']),
+                            dateStr,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -477,12 +408,12 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: _getSeverityColor(log['severity']),
+                              color: _getSeverityColor(severity),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              log['severity'],
-                              style: TextStyle(
+                              severity,
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -496,17 +427,17 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: log['isResolved']
+                              color: isResolved
                                   ? Colors.green.withValues(alpha: 0.1)
                                   : Colors.orange.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              log['isResolved'] ? 'Resolved' : 'Ongoing',
+                              isResolved ? 'Resolved' : 'Ongoing',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: log['isResolved']
+                                color: isResolved
                                     ? Colors.green[700]
                                     : Colors.orange[700],
                               ),
@@ -518,7 +449,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    log['description'],
+                    log['description'] ?? 'No description',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[700],
@@ -533,7 +464,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
     );
   }
 
-  Widget _buildDosageSchedule() {
+  Widget _buildDosageSchedule(Map<String, dynamic> profile) {
     const days = [
       'Monday',
       'Tuesday',
@@ -553,10 +484,16 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
       'sunday',
     ];
 
-    final totalWeeklyDose = _weeklyDosage.values.fold<double>(
-      0,
-      (sum, dose) => sum + dose,
-    );
+    final weeklyDosage = profile['weeklyDosage'] as Map<String, dynamic>? ?? {};
+    double totalWeeklyDose = 0;
+    for (final key in dayKeys) {
+      final value = weeklyDosage[key];
+      if (value is num) {
+        totalWeeklyDose += value.toDouble();
+      } else if (value is String) {
+        totalWeeklyDose += double.tryParse(value) ?? 0.0;
+      }
+    }
 
     return Column(
       children: [
@@ -624,7 +561,14 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
           ),
           itemCount: days.length,
           itemBuilder: (context, index) {
-            final dose = _weeklyDosage[dayKeys[index]] ?? 0.0;
+            final value = weeklyDosage[dayKeys[index]];
+            double dose = 0.0;
+            if (value is num) {
+              dose = value.toDouble();
+            } else if (value is String) {
+              dose = double.tryParse(value) ?? 0.0;
+            }
+            
             return Card(
               elevation: 1,
               shape: RoundedRectangleBorder(
@@ -750,10 +694,6 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 
   String _getLogTypeLabel(String type) {

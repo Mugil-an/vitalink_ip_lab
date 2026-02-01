@@ -54,10 +54,20 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('Error: ${query.error}'),
+                  const SizedBox(height: 16),
                   ElevatedButton(onPressed: () => query.refetch(), child: const Text('Retry')),
                 ],
               ),
             ),
+          );
+        }
+
+        if (!query.hasData) {
+          return const PatientScaffold(
+            pageTitle: '@ Profile Page',
+            currentNavIndex: 0,
+            onNavChanged: _dummyOnNavChanged,
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 

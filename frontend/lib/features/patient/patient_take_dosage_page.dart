@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
+import 'package:frontend/services/patient_service.dart';
+import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 
 class PatientTakeDosagePage extends StatefulWidget {
   const PatientTakeDosagePage({super.key});
@@ -10,192 +12,223 @@ class PatientTakeDosagePage extends StatefulWidget {
 }
 
 class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
-  int _currentNavIndex = 2;
-
-  // Mock dosage data
-  final List<Map<String, dynamic>> _missedDoses = [
-    {
-      'id': '1',
-      'date': DateTime.now().subtract(const Duration(days: 2)),
-      'dose': 5.0,
-      'reason': 'Forgot to take',
-      'status': 'Missed',
-      'markedOn': null,
-    },
-    {
-      'id': '2',
-      'date': DateTime.now().subtract(const Duration(days: 5)),
-      'dose': 2.5,
-      'reason': 'Out of medication',
-      'status': 'Missed',
-      'markedOn': null,
-    },
-    {
-      'id': '3',
-      'date': DateTime.now().subtract(const Duration(days: 8)),
-      'dose': 5.0,
-      'reason': 'Took late (after 12 hours)',
-      'status': 'Missed',
-      'markedOn': null,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _remainingDoses = [
-    {
-      'id': '1',
-      'date': DateTime.now(),
-      'dose': 5.0,
-      'scheduledTime': '08:00 AM',
-      'status': 'Pending',
-      'taken': false,
-    },
-    {
-      'id': '2',
-      'date': DateTime.now().add(const Duration(days: 1)),
-      'dose': 5.0,
-      'scheduledTime': '08:00 AM',
-      'status': 'Upcoming',
-      'taken': false,
-    },
-    {
-      'id': '3',
-      'date': DateTime.now().add(const Duration(days: 2)),
-      'dose': 2.5,
-      'scheduledTime': '08:00 AM',
-      'status': 'Upcoming',
-      'taken': false,
-    },
-    {
-      'id': '4',
-      'date': DateTime.now().add(const Duration(days: 3)),
-      'dose': 5.0,
-      'scheduledTime': '08:00 AM',
-      'status': 'Upcoming',
-      'taken': false,
-    },
-  ];
-
+  final int _currentNavIndex = 2;
   int _selectedTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    return PatientScaffold(
-      pageTitle: 'Dosage Management',
-      currentNavIndex: _currentNavIndex,
-      bodyDecoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFC8B5E1), Color(0xFFF8C7D7)],
-        ),
+    return UseQuery<Map<String, dynamic>>(
+      options: QueryOptions<Map<String, dynamic>>(
+        queryKey: const ['patient', 'dosage_full'],
+        queryFn: () async {
+          final profile = await PatientService.getProfile();
+          final missedDosesStrings = await PatientService.getMissedDoses();
+          
+          // Reconstruct upcoming doses from weeklyDosage
+          final weeklyDosage = profile['weeklyDosage'] as Map<String, dynamic>? ?? {};
+          final upcomingDoses = _generateUpcomingDoses(weeklyDosage);
+          
+          return {
+            'profile': profile,
+            'missed': missedDosesStrings.map((d) => {'date': d, 'dose': 5.0, 'reason': 'Auto-detected', 'status': 'Missed'}).toList(),
+            'upcoming': upcomingDoses,
+          };
+        },
       ),
-      onNavChanged: (index) {
-        if (index == _currentNavIndex) return;
-        switch (index) {
-          case 0:
-            Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile);
-            break;
-          case 1:
-            Navigator.of(context).pushReplacementNamed(AppRoutes.patientUpdateINR);
-            break;
-          case 2:
-            // Already on dosage page
-            break;
-          case 3:
-            Navigator.of(context).pushReplacementNamed(AppRoutes.patientRecords);
-            break;
+      builder: (context, query) {
+        if (query.isLoading) {
+          return const PatientScaffold(
+            pageTitle: 'Dosage Management',
+            currentNavIndex: 2,
+            onNavChanged: _dummyOnNavChanged,
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
-      },
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Tabs
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-              ),
-              child: Row(
+
+        if (query.isError) {
+          return PatientScaffold(
+            pageTitle: 'Dosage Management',
+            currentNavIndex: 2,
+            onNavChanged: (index) => _handleNav(index),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTabIndex = 0),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          border: _selectedTabIndex == 0
-                              ? Border(
-                                  bottom: BorderSide(
-                                    color: Colors.pink[400]!,
-                                    width: 3,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: Text(
-                          'Upcoming (${_remainingDoses.length})',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _selectedTabIndex == 0
-                                ? Colors.pink[400]
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTabIndex = 1),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          border: _selectedTabIndex == 1
-                              ? Border(
-                                  bottom: BorderSide(
-                                    color: Colors.pink[400]!,
-                                    width: 3,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: Text(
-                          'Missed (${_missedDoses.length})',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _selectedTabIndex == 1
-                                ? Colors.pink[400]
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  Text('Error: ${query.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: () => query.refetch(), child: const Text('Retry')),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+          );
+        }
 
-            // Content based on selected tab
-            if (_selectedTabIndex == 0)
-              _buildUpcomingDoses()
-            else
-              _buildMissedDoses(),
-          ],
+        if (!query.hasData) {
+          return const PatientScaffold(
+            pageTitle: 'Dosage Management',
+            currentNavIndex: 2,
+            onNavChanged: _dummyOnNavChanged,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final data = query.data!;
+        final upcomingDoses = data['upcoming'] as List<Map<String, dynamic>>;
+        final missedDoses = data['missed'] as List<Map<String, dynamic>>;
+
+        return UseMutation<void, Map<String, dynamic>>(
+          options: MutationOptions<void, Map<String, dynamic>>(
+            mutationFn: (variables) => PatientService.markDoseAsTaken(
+              date: variables['date'],
+              dose: variables['dose'],
+            ),
+            onSuccess: (data, variables) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Dose marked as taken!'), backgroundColor: Colors.green),
+              );
+              query.refetch();
+            },
+            onError: (error, variables) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: ${error.toString()}'), backgroundColor: Colors.red),
+              );
+            },
+          ),
+          builder: (context, mutation) {
+            return PatientScaffold(
+              pageTitle: 'Dosage Management',
+              currentNavIndex: _currentNavIndex,
+              bodyDecoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFC8B5E1), Color(0xFFF8C7D7)],
+                ),
+              ),
+              onNavChanged: (index) => _handleNav(index),
+              body: RefreshIndicator(
+                onRefresh: () async => query.refetch(),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Tabs
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildTabItem(0, 'Upcoming (${upcomingDoses.length})'),
+                            _buildTabItem(1, 'Missed (${missedDoses.length})'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Content based on selected tab
+                      if (_selectedTabIndex == 0)
+                        _buildUpcomingDoses(upcomingDoses, mutation)
+                      else
+                        _buildMissedDoses(missedDoses),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static void _dummyOnNavChanged(int index) {}
+
+  void _handleNav(int index) {
+    if (index == _currentNavIndex) return;
+    switch (index) {
+      case 0:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile);
+        break;
+      case 1:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.patientUpdateINR);
+        break;
+      case 2:
+        break;
+      case 3:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.patientRecords);
+        break;
+    }
+  }
+
+  Widget _buildTabItem(int index, String label) {
+    final isSelected = _selectedTabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTabIndex = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            border: isSelected
+                ? Border(
+                    bottom: BorderSide(
+                      color: Colors.pink[400]!,
+                      width: 3,
+                    ),
+                  )
+                : null,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.pink[400] : Colors.grey[600],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildUpcomingDoses() {
-    if (_remainingDoses.isEmpty) {
+  List<Map<String, dynamic>> _generateUpcomingDoses(Map<String, dynamic> weeklyDosage) {
+    final List<Map<String, dynamic>> doses = [];
+    final now = DateTime.now();
+    final dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    
+    for (int i = 0; i < 7; i++) {
+      final date = now.add(Duration(days: i));
+      final dayName = dayNames[(date.weekday - 1) % 7];
+      final value = weeklyDosage[dayName];
+      double doseAmount = 0.0;
+      
+      if (value is num) {
+        doseAmount = value.toDouble();
+      } else if (value is String) {
+        doseAmount = double.tryParse(value) ?? 0.0;
+      }
+      
+      if (doseAmount > 0) {
+        doses.add({
+          'id': 'upcoming_$i',
+          'date': date,
+          'dose': doseAmount,
+          'scheduledTime': '08:00 AM', // Default
+          'status': i == 0 ? 'Pending' : 'Upcoming',
+          'taken': false,
+        });
+      }
+    }
+    return doses;
+  }
+
+  Widget _buildUpcomingDoses(List<Map<String, dynamic>> doses, MutationResult<void, Map<String, dynamic>> mutation) {
+    if (doses.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 40),
@@ -218,22 +251,21 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
     }
 
     return Column(
-      children: _remainingDoses.asMap().entries.map((entry) {
-        final dose = entry.value;
+      children: doses.map((dose) {
         final isToday = _isToday(dose['date']);
 
         return _DosageCard(
           dose: dose,
           isToday: isToday,
-          onMarkAsTaken: () => _markDoseAsTaken(entry.key),
-          onSnooze: () => _snoozeDose(entry.key),
+          onMarkAsTaken: () => _showMarkAsTakenDialog(dose, mutation),
+          onSnooze: () => _snoozeDose(dose),
         );
       }).toList(),
     );
   }
 
-  Widget _buildMissedDoses() {
-    if (_missedDoses.isEmpty) {
+  Widget _buildMissedDoses(List<Map<String, dynamic>> doses) {
+    if (doses.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 40),
@@ -256,17 +288,16 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
     }
 
     return Column(
-      children: _missedDoses.asMap().entries.map((entry) {
-        final dose = entry.value;
+      children: doses.map((dose) {
         return _MissedDoseCard(
           dose: dose,
-          onMarkRecovered: () => _markMissedDoseRecovered(entry.key),
+          onMarkRecovered: () => _markMissedDoseRecovered(dose),
         );
       }).toList(),
     );
   }
 
-  void _markDoseAsTaken(int index) {
+  void _showMarkAsTakenDialog(Map<String, dynamic> dose, MutationResult<void, Map<String, dynamic>> mutation) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -275,17 +306,17 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Confirm taking dosage:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             _DetailRow(
               'Date:',
-              _formatDate(_remainingDoses[index]['date']),
+              PatientService.formatDate(dose['date']),
             ),
-            _DetailRow('Dose:', '${_remainingDoses[index]['dose']} mg'),
-            _DetailRow('Time:', _remainingDoses[index]['scheduledTime']),
+            _DetailRow('Dose:', '${dose['dose']} mg'),
+            _DetailRow('Time:', dose['scheduledTime']),
           ],
         ),
         actions: [
@@ -296,15 +327,10 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              setState(() {
-                _remainingDoses[index]['taken'] = true;
+              mutation.mutate({
+                'date': PatientService.formatDate(dose['date']),
+                'dose': dose['dose'],
               });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Dose marked as taken'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -316,7 +342,7 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
     );
   }
 
-  void _snoozeDose(int index) {
+  void _snoozeDose(Map<String, dynamic> dose) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -346,7 +372,7 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
     );
   }
 
-  void _markMissedDoseRecovered(int index) {
+  void _markMissedDoseRecovered(Map<String, dynamic> dose) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -361,7 +387,7 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
             ),
             const SizedBox(height: 12),
             Text(
-              _missedDoses[index]['reason'],
+              dose['reason'],
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey[700],
@@ -410,10 +436,6 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
     return date.year == now.year &&
         date.month == now.month &&
         date.day == now.day;
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }
 
@@ -507,7 +529,7 @@ class _DosageCard extends StatelessWidget {
                 Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Text(
-                  _formatDate(dose['date']),
+                  PatientService.formatDate(dose['date']),
                   style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
                 const Spacer(),
@@ -548,10 +570,6 @@ class _DosageCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }
 
@@ -628,7 +646,7 @@ class _MissedDoseCard extends StatelessWidget {
                 Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Text(
-                  _formatDate(dose['date']),
+                  PatientService.formatDate(dose['date']),
                   style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
               ],
@@ -680,10 +698,6 @@ class _MissedDoseCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }
 

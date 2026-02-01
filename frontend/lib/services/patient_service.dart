@@ -66,9 +66,9 @@ class PatientService {
           'gender': demographics['gender'] ?? 'N/A',
           'phone': demographics['phone'] ?? 'N/A',
           'targetINR': '${targetInr['min'] ?? 2.0} - ${targetInr['max'] ?? 3.0}',
-          'nextReviewDate': _formatDate(medicalConfig['next_review_date']),
+          'nextReviewDate': formatDate(medicalConfig['next_review_date']),
           'therapyDrug': medicalConfig['therapy_drug'] ?? 'N/A',
-          'therapyStartDate': _formatDate(medicalConfig['therapy_start_date']),
+          'therapyStartDate': formatDate(medicalConfig['therapy_start_date']),
           'doctorName': doctorName,
           'doctorPhone': doctorPhone,
           'caregiver': nextOfKin['name'] ?? 'N/A',
@@ -129,6 +129,21 @@ class PatientService {
     }
   }
 
+  static Future<void> markDoseAsTaken({
+    required String date,
+    required double dose,
+  }) async {
+    _setupInterceptors();
+    try {
+      await _dio.post('/mark-taken', data: {
+        'date': date,
+        'dose': dose,
+      });
+    } on DioException catch (e) {
+      throw Exception('Failed to mark dose as taken: ${e.message}');
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> getINRHistory() async {
     _setupInterceptors();
     try {
@@ -137,7 +152,7 @@ class PatientService {
         final inrHistory = response.data['data']['report']['inr_history'] as List;
         return inrHistory.map((item) {
           return {
-            'date': _formatDate(item['test_date']),
+            'date': formatDate(item['test_date']),
             'inr': (item['inr_value'] as num).toDouble(),
             'notes': item['notes'] ?? 'No notes',
             'status': _getINRStatus(item['inr_value'], 2.0, 3.0),
@@ -166,7 +181,7 @@ class PatientService {
             'drug': therapyDrug,
             'dosage': report['weekly_dosage']['monday']?[0]?['dose'] ?? '5mg',
             'frequency': 'As per schedule',
-            'startDate': _formatDate(report['medical_config']['therapy_start_date']),
+            'startDate': formatDate(report['medical_config']['therapy_start_date']),
             'instructions': (report['medical_config']['instructions'] as List?)?.join(', ') ?? 'Follow doctor instructions',
           });
         }
@@ -176,7 +191,7 @@ class PatientService {
           'drug': 'Aspirin',
           'dosage': '75mg',
           'frequency': 'Once daily',
-          'startDate': _formatDate(report['medical_config']['therapy_start_date']),
+          'startDate': formatDate(report['medical_config']['therapy_start_date']),
           'instructions': 'Take in the morning with food',
         });
 
@@ -207,7 +222,7 @@ class PatientService {
   }
 
   // Helper function to format dates
-  static String _formatDate(dynamic date) {
+  static String formatDate(dynamic date) {
     if (date == null) return 'N/A';
     if (date is String) {
       try {
