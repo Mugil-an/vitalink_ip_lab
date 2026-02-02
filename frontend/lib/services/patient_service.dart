@@ -88,16 +88,19 @@ class PatientService {
   }
 
   // Get missed doses
-  static Future<List<String>> getMissedDoses() async {
+  static Future<Map<String, dynamic>> getMissedDoses() async {
     _setupInterceptors();
     try {
       final response = await _dio.get('/missed-doses');
       if (response.statusCode == 200) {
         final recent = response.data['data']['recent_missed_doses'] as List;
         final missed = response.data['data']['missed_doses'] as List;
-        return [...recent.cast<String>(), ...missed.cast<String>()];
+        return {
+          'recent_missed_doses': recent.cast<String>(),
+          'missed_doses': missed.cast<String>(),
+        };
       }
-      return [];
+      return {'recent_missed_doses': [], 'missed_doses': []};
     } on DioException catch (e) {
       throw Exception('Error: ${e.message}');
     }
@@ -105,9 +108,10 @@ class PatientService {
 
   // Get INR history
   static Future<void> submitINRReport({
-    required double inrValue,
+    required String inrValue,
     required String testDate, // Expected in dd-mm-yyyy
-    String? filePath,
+    List<int>? fileBytes,
+    String? fileName,
   }) async {
     _setupInterceptors();
     try {
@@ -116,10 +120,10 @@ class PatientService {
         'test_date': testDate,
       });
 
-      if (filePath != null) {
+      if (fileBytes != null && fileName != null) {
         formData.files.add(MapEntry(
           'file',
-          await MultipartFile.fromFile(filePath),
+          MultipartFile.fromBytes(fileBytes, filename: fileName),
         ));
       }
 
@@ -245,6 +249,38 @@ class PatientService {
       return 'Low';
     } else {
       return 'High';
+    }
+  }
+
+  // Update patient profile
+  static Future<void> updateProfile({
+    Map<String, dynamic>? demographics,
+    List<Map<String, dynamic>>? medicalHistory,
+    Map<String, dynamic>? medicalConfig,
+  }) async {
+    _setupInterceptors();
+    try {
+      final Map<String, dynamic> data = {};
+      
+      if (demographics != null) {
+        data['demographics'] = demographics;
+      }
+      
+      if (medicalHistory != null) {
+        data['medical_history'] = medicalHistory;
+      }
+      
+      if (medicalConfig != null) {
+        data['medical_config'] = medicalConfig;
+      }
+
+      final response = await _dio.put('/profile', data: data);
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update profile');
+      }
+    } on DioException catch (e) {
+      throw Exception('Error: ${e.message}');
     }
   }
 }

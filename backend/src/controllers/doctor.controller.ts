@@ -5,6 +5,8 @@ import { DoctorProfile, PatientProfile, User } from '@src/models'
 import { UserType } from '@src/validators'
 import type { CreatePatientInput, UpdateProfileInput } from '@src/validators/doctor.validator'
 import mongoose from 'mongoose'
+import { uploadFile } from '@src/utils/fileUpload'
+import logger from '@src/utils/logger'
 
 export const getPatients = asyncHandler(async (req: Request, res: Response) => {
   const { user_id } = req.user
@@ -254,3 +256,25 @@ export const updateReportsInstructions = asyncHandler(async (req: Request, res: 
   // Find if The patient is doctors
 
 })
+
+export const updateProfilePicture = async(req: Request, res: Response) => {
+  if(!req.file){
+    throw new ApiError(StatusCodes.BAD_REQUEST,"Image is required for setting up profile picture")
+  }
+  const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid file type. Only PNG, JPEG, JPG, and WEBP images are allowed')
+    }
+  const {user_id} = req.user
+
+  let fileUrl = ''
+  try {
+    fileUrl = await uploadFile("profiles", req.file)
+  } catch (error) {
+    logger.error("Error While Uploading profile to filebase", { error })
+    throw new ApiError(StatusCodes.INSUFFICIENT_STORAGE, "Error While Uploading report to cloud")
+  }
+
+  const user = await User.findByIdAndUpdate(user_id, { profile_picture: fileUrl }, { new: true })
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Profile Picture successfully changed"))
+}

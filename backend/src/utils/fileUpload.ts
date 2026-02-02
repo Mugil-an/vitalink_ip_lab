@@ -4,7 +4,7 @@ import client from '@src/config/s3-client'
 import { config } from '@src/config'
 import path from 'path'
 
-function buildS3Key(originalName: string) {
+function buildS3Key(folder:string, originalName: string) {
     const ext = path.extname(originalName).toLowerCase();
     const filename = path
         .basename(originalName, ext)
@@ -13,11 +13,11 @@ function buildS3Key(originalName: string) {
 
     const suffix = Math.random().toString(36).slice(2, 2 + 5);
 
-    return `uploads/${filename}/${suffix}${ext}`;
+    return `${folder}/${filename}/${suffix}${ext}`;
 }
 
-export async function getUploadUrl(filename: string, type: string) {
-    const key = buildS3Key(filename);
+export async function getUploadUrl(folder:string, filename: string, type: string) {
+    const key = buildS3Key(folder, filename);
     const command = new PutObjectCommand({
         Bucket: config.bucketName,
         Key: key,
@@ -36,8 +36,8 @@ export async function getDownloadUrl(key: string) {
     return getSignedUrl(client, command, { expiresIn: 3600 });
 }
 
-export async function uploadFile(file: Express.Multer.File) {
-    const { uploadUrl, key } = await getUploadUrl(file.originalname, file.mimetype);
+export async function uploadFile(folder:string, file: Express.Multer.File) {
+    const { uploadUrl, key } = await getUploadUrl(folder, file.originalname, file.mimetype);
     await fetch(uploadUrl, {
         method: "PUT",
         body: file.buffer,

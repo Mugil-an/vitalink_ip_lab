@@ -14,8 +14,12 @@ export enum therapy_drug {
   HEPARIN = "Heparin",
   DABIGATRAN = "Dabigatran",
   RIVAROXABAN = "Rivaroxaban",
-  ACITROM = "ACITROM",
+  ACITROM = "Acitrom",
 }
 
-
-export { loginSchema } from './user.validator'
+export enum HealthLog {
+  SIDE_EFFECT = 'SIDE_EFFECT',
+  ILLNESS = 'ILLNESS',
+  LIFESTYLE = 'LIFESTYLE',
+  OTHER_MEDS = 'OTHER_MEDS'
+}

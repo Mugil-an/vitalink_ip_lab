@@ -11,8 +11,12 @@ import {
     updateNextReview,
     viewPatient,
     UpdateProfile,
+    updateProfilePicture,
 } from '@src/controllers/doctor.controller'
 import { createPatient } from '@src/validators/doctor.validator'
+import multer from 'multer'
+
+const upload = multer({ dest: 'uploads/profiles/' })
 
 const router = Router()
 
@@ -28,5 +32,6 @@ router.put('/patients/:op_num/config', authenticate, AllowDoctor, updateNextRevi
 router.get('/profile', authenticate, AllowDoctor, getProfile)
 router.put('/profile', authenticate, AllowDoctor, UpdateProfile)
 router.get('/doctors', authenticate, AllowDoctor, getDoctors)
+router.post("/profile-pic", authenticate, AllowDoctor, upload.single('file'), updateProfilePicture)
 
 export default router

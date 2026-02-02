@@ -6,6 +6,7 @@ import 'package:frontend/features/patient/patient_records_page.dart';
 import 'package:frontend/features/patient/patient_profile_page.dart';
 import 'package:frontend/features/patient/patient_update_inr_page.dart';
 import 'package:frontend/features/patient/patient_take_dosage_page.dart';
+import 'package:frontend/features/patient/patient_health_reports_page.dart';
 import 'package:frontend/features/doctor/doctor_dashboard_page.dart';
 import 'package:frontend/features/doctor/add_patient_page.dart';
 
@@ -17,6 +18,7 @@ class AppRoutes {
 	static const String patientProfile = '/patient-profile';
 	static const String patientUpdateINR = '/patient-update-inr';
 	static const String patientTakeDosage = '/patient-take-dosage';
+	static const String patientHealthReports = '/patient-health-reports';
 	static const String doctorDashboard = '/doctor-dashboard';
 	static const String doctorAddPatient = '/doctor-add-patient';
 	// Add more route names here as needed, e.g.
@@ -32,6 +34,7 @@ class AppRouter {
 		AppRoutes.patientHome: (_) => const PatientHomePage(),
 		AppRoutes.patientUpdateINR: (_) => const PatientUpdateINRPage(),
 		AppRoutes.patientTakeDosage: (_) => const PatientTakeDosagePage(),
+		AppRoutes.patientHealthReports: (_) => const PatientHealthReportsPage(),
 		AppRoutes.patientRecords: (_) => const PatientRecordsPage(),
 		AppRoutes.patientProfile: (_) => const PatientProfilePage(),
 		AppRoutes.doctorDashboard: (_) => const DoctorDashboardPage(),

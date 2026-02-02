@@ -3,7 +3,7 @@ import { ApiError, ApiResponse, asyncHandler } from '@src/utils'
 import { StatusCodes } from 'http-status-codes'
 import { PatientProfile, User } from '@src/models'
 import { UserType } from '@src/validators'
-import type { LogInrInput, MissedDoseInput, ReportInput, TakeDosageInput } from '@src/validators/patient.validator'
+import type { ReportInput, TakeDosageInput, UpdateHealthLog, UpdateProfileInput } from '@src/validators/patient.validator'
 import logger from '@src/utils/logger'
 import { uploadFile } from '@src/utils/fileUpload'
 
@@ -24,30 +24,6 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Profile fetched successfully', { patient: user }))
 })
 
-export const updateinr = asyncHandler(async (req: Request<{}, {}, LogInrInput['body']>, res: Response) => {
-	const patientUser = await User.findById(req.user.user_id)
-
-	const { inr_value, test_date, notes, is_critical } = req.body
-
-	const patient = await PatientProfile.findByIdAndUpdate(
-		patientUser.profile_id,
-		{
-			$push: {
-				inr_history: {
-					test_date,
-					uploaded_at: new Date(),
-					inr_value,
-					is_critical: is_critical ?? false,
-					notes,
-				},
-			},
-		},
-		{ new: true }
-	)
-
-	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'INR updated successfully', { patient }))
-})
-
 export const getReport = asyncHandler(async (req: Request, res: Response) => {
 	if (!req.user) {
 		throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized')
@@ -65,11 +41,12 @@ export const getReport = asyncHandler(async (req: Request, res: Response) => {
 export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput['body']>, res: Response) => {
 	const { user_id } = req.user
 	const patientUser = await User.findById(user_id)
-	if (!patientUser || patientUser.user_type !== UserType.PATIENT) {
-		throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
-	}
 
 	const { inr_value, test_date } = req.body
+	const parsed_inr_value = parseFloat(inr_value)
+	if (isNaN(parsed_inr_value)) {
+		throw new ApiError(StatusCodes.BAD_REQUEST, 'INR value should be a valid number')
+	}
 	const file = (req as any).file as Express.Multer.File | undefined
 
 	if (file) {
@@ -80,20 +57,20 @@ export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput
 	}
 	let fileUrl = ''
 	try {
-		fileUrl = await uploadFile(file)
+		fileUrl = await uploadFile("uploads", file)
 	} catch (error) {
 		logger.error("Error While Uploading File to filebase", { error })
 		throw new ApiError(StatusCodes.INSUFFICIENT_STORAGE, "Error While Uploading report to cloud")
 	}
-
+	console.log(fileUrl)
 	const patient = await PatientProfile.findByIdAndUpdate(
 		patientUser.profile_id,
 		{
 			$push: {
 				inr_history: {
-					test_date,
+					test_date: test_date,
 					uploaded_at: new Date(),
-					inr_value,
+					inr_value: parsed_inr_value,
 					file_url: fileUrl,
 				},
 			},
@@ -105,7 +82,7 @@ export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput
 })
 
 // TODO: Need to Review The Routes and Logic After This Later
-export const missedDoses = asyncHandler(async (req: Request<{}, {}, MissedDoseInput['body']>, res: Response) => {
+export const missedDoses = asyncHandler(async (req: Request<{}, {}, {}>, res: Response) => {
 	const patientUser = await User.findById(req.user.user_id)
 
 	const patient = await PatientProfile.findById(patientUser.profile_id)
@@ -141,6 +118,9 @@ export const missedDoses = asyncHandler(async (req: Request<{}, {}, MissedDoseIn
 		}
 	})
 
+	console.log("Recent Missed Doses", recent_missed_doses, remaining_missed)
+
+
 	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Missed doses calculated',
 		{ recent_missed_doses, missed_doses: remaining_missed }))
 })
@@ -163,6 +143,102 @@ export const takeDosage = asyncHandler(async (req: Request<{}, {}, TakeDosageInp
 
 	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Dosage logged', { patient }))
 })
+
+export const updateProfile = asyncHandler(async (req: Request<{}, {}, UpdateProfileInput['body']>, res: Response) => {
+    const { user_id } = req.user
+    const { demographics, medical_history, medical_config } = req.body
+
+    const user = await User.findById(user_id)
+    if (!user || user.user_type !== UserType.PATIENT) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+    }
+
+    const updateData: any = {}
+
+    if (demographics) {
+        if (demographics.name) updateData['demographics.name'] = demographics.name
+        if (demographics.age !== undefined) updateData['demographics.age'] = demographics.age
+        if (demographics.gender) updateData['demographics.gender'] = demographics.gender
+        if (demographics.phone) updateData['demographics.phone'] = demographics.phone
+        if (demographics.next_of_kin) {
+            if (demographics.next_of_kin.name) updateData['demographics.next_of_kin.name'] = demographics.next_of_kin.name
+            if (demographics.next_of_kin.relation) updateData['demographics.next_of_kin.relation'] = demographics.next_of_kin.relation
+            if (demographics.next_of_kin.phone) updateData['demographics.next_of_kin.phone'] = demographics.next_of_kin.phone
+        }
+    }
+
+    if (medical_history) {
+        updateData.medical_history = medical_history
+    }
+
+    if (medical_config) {
+        if (medical_config.therapy_drug) updateData['medical_config.therapy_drug'] = medical_config.therapy_drug
+        if (medical_config.therapy_start_date) {
+            const startDate = typeof medical_config.therapy_start_date === 'string' 
+                ? new Date(medical_config.therapy_start_date) 
+                : medical_config.therapy_start_date
+            updateData['medical_config.therapy_start_date'] = startDate
+        }
+    }
+
+    const updatedProfile = await PatientProfile.findByIdAndUpdate(
+        user.profile_id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+    )
+
+    if (!updatedProfile) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
+    }
+
+    res.status(StatusCodes.OK).json(
+        new ApiResponse(StatusCodes.OK, 'Profile updated successfully', { profile: updatedProfile })
+    )
+})
+
+export const updateHealthLogs = asyncHandler(async (req: Request<{}, {}, UpdateHealthLog["body"]>, res: Response) => {
+	const { type, description } = req.body
+	const { user_id } = req.user
+
+	const user = await User.findById(user_id)
+	const patientprofile = await PatientProfile.findByIdAndUpdate(user.profile_id,
+		[{
+			$set: {
+				health_logs: {
+					$concatArrays: [
+						{ $filter: { input: "$health_logs", as: "log", cond: { $ne: ["$$log.type", type] } } },
+						[{ type: type, description: description.trim(), date: new Date() }]
+					]
+				}
+			}
+		}],
+		{ new: true, updatePipeline: true }
+	);
+
+	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Health Logs Updated Suucessfully"))
+})
+
+export const updateProfilePicture = async (req: Request, res: Response) => {
+	if (!req.file) {
+		throw new ApiError(StatusCodes.BAD_REQUEST, "Image is required for setting up profile picture")
+	}
+	const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+	if (!allowedMimeTypes.includes(req.file.mimetype)) {
+		throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid file type. Only PNG, JPEG, JPG, and WEBP images are allowed')
+	}
+	const { user_id } = req.user
+
+	let fileUrl = ''
+	try {
+		fileUrl = await uploadFile("profiles", req.file)
+	} catch (error) {
+		logger.error("Error While Uploading profile to filebase", { error })
+		throw new ApiError(StatusCodes.INSUFFICIENT_STORAGE, "Error While Uploading report to cloud")
+	}
+
+	const user = await User.findByIdAndUpdate(user_id, { profile_picture: fileUrl }, { new: true })
+	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Profile Picture successfully changed"))
+}
 
 function parseDDMMYYYY(date: string | Date): Date {
 	const regex = /^\d{2}-\d{2}-\d{4}$/

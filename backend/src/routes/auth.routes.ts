@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { validate } from "@src/middlewares/ValidateResource";
 import { authenticate } from "@src/middlewares/authProvider.middleware";
-import { loginSchema } from "@src/validators";
+import { loginSchema } from "@src/validators/user.validator";
 import {
   loginController,
   logoutController,

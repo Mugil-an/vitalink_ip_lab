@@ -40,6 +40,7 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
     );
 
     if (result != null) {
@@ -85,13 +86,20 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
         mutationFn: (variables) => PatientService.submitINRReport(
           inrValue: variables['inr_value'],
           testDate: variables['test_date'],
-          filePath: variables['file_path'],
+          fileBytes: variables['file_bytes'],
+          fileName: variables['file_name'],
         ),
         onSuccess: (data, variables) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Report submitted successfully!'), backgroundColor: Colors.green),
           );
-          Navigator.of(context).pushReplacementNamed(AppRoutes.patientRecords);
+          // Invalidate queries to refetch updated data
+          final queryClient = QueryClientProvider.of(context);
+          queryClient.invalidateQueries(['patient', 'home_data']);
+          queryClient.invalidateQueries(['patient', 'records_full']);
+          queryClient.invalidateQueries(['patient', 'profile_full']);
+          
+          Navigator.of(context).pushReplacementNamed(AppRoutes.patientHealthReports);
         },
         onError: (error, variables) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -106,10 +114,11 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
           onNavChanged: (index) {
             if (index == _currentNavIndex) return;
             switch (index) {
-              case 0: Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile); break;
+              case 0: Navigator.of(context).pushReplacementNamed(AppRoutes.patientHome); break;
               case 1: break;
               case 2: Navigator.of(context).pushReplacementNamed(AppRoutes.patientTakeDosage); break;
-              case 3: Navigator.of(context).pushReplacementNamed(AppRoutes.patientRecords); break;
+              case 3: Navigator.of(context).pushReplacementNamed(AppRoutes.patientHealthReports); break;
+              case 4: Navigator.of(context).pushReplacementNamed(AppRoutes.patientProfile); break;
             }
           },
           bodyDecoration: const BoxDecoration(
@@ -199,9 +208,10 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
                         onPressed: mutation.isLoading ? null : () {
                           if (_formKey.currentState!.validate()) {
                             mutation.mutate({
-                              'inr_value': double.parse(_inrValueController.text),
+                              'inr_value': _inrValueController.text,
                               'test_date': _testDateController.text,
-                              'file_path': _selectedFile?.path,
+                              'file_bytes': _selectedFile?.bytes,
+                              'file_name': _selectedFile?.name,
                             });
                           }
                         },

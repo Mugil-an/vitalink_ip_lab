@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { HealthLog } from '.'
 
 const ddmmyyyy = z.string('Date should be a string')
 	.regex(/^\d{2}-\d{2}-\d{4}$/, 'Date must be in DD-MM-YYYY format')
@@ -7,28 +8,13 @@ const ddmmyyyy = z.string('Date should be a string')
 		return new Date(year, month - 1, day)
 	})
 
-export const logInrSchema = z.object({
-	body: z.object({
-		inr_value: z.number('INR value should be a number'),
-		test_date: ddmmyyyy,
-		notes: z.string().optional(),
-		is_critical: z.boolean().optional(),
-	})
-})
-export type LogInrInput = z.infer<typeof logInrSchema>
-
 export const reportSchema = z.object({
 	body: z.object({
-		inr_value: z.number('INR value should be a number'),
+		inr_value: z.string('INR value should be a string').nonempty("Inr Value Should not be empty"),
 		test_date: ddmmyyyy,
 	})
 })
 export type ReportInput = z.infer<typeof reportSchema>
-
-export const missedDoseSchema = z.object({
-	body: z.object({}).strict()
-})
-export type MissedDoseInput = z.infer<typeof missedDoseSchema>
 
 export const takeDosageSchema = z.object({
 	body: z.object({
@@ -36,3 +22,41 @@ export const takeDosageSchema = z.object({
 	})
 })
 export type TakeDosageInput = z.infer<typeof takeDosageSchema>
+
+
+export const updateHealthLogSchema = z.object({
+	body: z.object({
+		type: z.enum(HealthLog, "The Health Log Type should be a valid One"),
+		description: z.string("Description Should be a string")
+	})
+})
+
+export type UpdateHealthLog = z.infer<typeof updateHealthLogSchema>
+
+
+export const updateProfileSchema = z.object({
+    body: z.object({
+        demographics: z.object({
+            name: z.string().min(1, "Name is required").optional(),
+            age: z.number().int().positive().optional(),
+            gender: z.enum(["Male", "Female", "Other"]).optional(),
+            phone: z.string().optional(),
+            next_of_kin: z.object({
+                name: z.string().optional(),
+                relation: z.string().optional(),
+                phone: z.string().optional()
+            }).optional()
+        }).optional(),
+        medical_history: z.array(z.object({
+            diagnosis: z.string().optional(),
+            duration_value: z.number().positive().optional(),
+            duration_unit: z.enum(['Days', 'Weeks', 'Months', 'Years']).optional()
+        })).optional(),
+        medical_config: z.object({
+            therapy_drug: z.string().optional(),
+            therapy_start_date: z.union([z.date(), z.string().datetime()]).optional()
+        }).optional()
+    })
+})
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

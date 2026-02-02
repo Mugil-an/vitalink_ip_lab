@@ -16,3 +16,4 @@ export 'doctor/doctor_profile_widgets.dart';
 export 'patient/patient_bottom_nav.dart';
 export 'patient/patient_scaffold.dart';
 export 'patient/patient_profile_widgets.dart';
+export 'patient/patient_dosage_widgets.dart';

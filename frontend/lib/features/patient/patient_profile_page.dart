@@ -16,7 +16,7 @@ class PatientProfilePage extends StatefulWidget {
 }
 
 class _PatientProfilePageState extends State<PatientProfilePage> {
-  final int _currentNavIndex = 0;
+  final int _currentNavIndex = 4;
 
   @override
   Widget build(BuildContext context) {
@@ -237,10 +237,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   void _handleNav(int index) {
     if (index == _currentNavIndex) return;
     switch (index) {
-      case 0: break;
+      case 0: Navigator.of(context).pushReplacementNamed(AppRoutes.patientHome); break;
       case 1: Navigator.of(context).pushReplacementNamed(AppRoutes.patientUpdateINR); break;
       case 2: Navigator.of(context).pushReplacementNamed(AppRoutes.patientTakeDosage); break;
-      case 3: Navigator.of(context).pushReplacementNamed(AppRoutes.patientRecords); break;
+      case 3: Navigator.of(context).pushReplacementNamed(AppRoutes.patientHealthReports); break;
+      case 4: break;
     }
   }
 
@@ -256,14 +257,34 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            profile['name'] ?? 'Patient Name',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.black87),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '(Age: ${profile['age']}, Gender: ${profile['gender']?[0]})',
-            style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile['name'] ?? 'Patient Name',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '(Age: ${profile['age']}, Gender: ${profile['gender']?[0]})',
+                      style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => _showUpdateProfileDialog(profile),
+                icon: const Icon(Icons.edit, color: Color(0xFF0084FF)),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  padding: const EdgeInsets.all(12),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           const Divider(color: Colors.black12, height: 1),
@@ -495,6 +516,215 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Text(value, style: const TextStyle(color: Colors.black87)),
+        ),
+      ],
+    );
+  }
+
+  void _showUpdateProfileDialog(Map<String, dynamic> profile) {
+    final nameController = TextEditingController(text: profile['name']);
+    final ageController = TextEditingController(text: profile['age']?.toString() ?? '');
+    final phoneController = TextEditingController(text: profile['phone'] ?? '');
+    final caregiverController = TextEditingController(text: profile['caregiver'] ?? '');
+    final kinNameController = TextEditingController(text: profile['kinName'] ?? '');
+    final kinPhoneController = TextEditingController(text: profile['kinPhone'] ?? '');
+    final therapyDrugController = TextEditingController(text: profile['therapyDrug'] ?? '');
+    final therapyStartDateController = TextEditingController(text: profile['therapyStartDate'] ?? '');
+    
+    String? selectedGender = profile['gender'];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => UseMutation<void, Map<String, dynamic>>(
+        options: MutationOptions<void, Map<String, dynamic>>(
+          mutationFn: (variables) => PatientService.updateProfile(
+            demographics: variables['demographics'],
+            medicalConfig: variables['medical_config'],
+          ),
+          onSuccess: (data, variables) {
+            Navigator.pop(dialogContext);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Profile updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            // Invalidate multiple queries to refetch updated data
+            final queryClient = QueryClientProvider.of(context);
+            queryClient.invalidateQueries(['patient', 'profile_full']);
+            queryClient.invalidateQueries(['patient', 'records_full']);
+            queryClient.invalidateQueries(['patient', 'home_data']);
+          },
+          onError: (error, variables) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: ${error.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          },
+        ),
+        builder: (context, mutation) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Update Profile',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTextField('Name', nameController),
+                  const SizedBox(height: 16),
+                  _buildTextField('Age', ageController, keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  _buildTextField('Phone', phoneController, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Gender',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  StatefulBuilder(
+                    builder: (context, setState) => DropdownButtonFormField<String>(
+                      value: selectedGender,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Male', child: Text('Male')),
+                        DropdownMenuItem(value: 'Female', child: Text('Female')),
+                        DropdownMenuItem(value: 'Other', child: Text('Other')),
+                      ],
+                      onChanged: (value) {
+                        setState(() => selectedGender = value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField('Caregiver', caregiverController),
+                  const SizedBox(height: 16),
+                  _buildTextField('Kin Name', kinNameController),
+                  const SizedBox(height: 16),
+                  _buildTextField('Kin Phone', kinPhoneController, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 16),
+                  _buildTextField('Therapy Drug', therapyDrugController),
+                  const SizedBox(height: 16),
+                  _buildTextField('Therapy Start Date (DD-MM-YYYY)', therapyStartDateController),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: mutation.isLoading
+                    ? null
+                    : () {
+                        final demographics = <String, dynamic>{};
+                        final medicalConfig = <String, dynamic>{};
+
+                        if (nameController.text.isNotEmpty) {
+                          demographics['name'] = nameController.text;
+                        }
+                        if (ageController.text.isNotEmpty) {
+                          demographics['age'] = int.tryParse(ageController.text) ?? 0;
+                        }
+                        if (selectedGender != null) {
+                          demographics['gender'] = selectedGender;
+                        }
+                        if (phoneController.text.isNotEmpty) {
+                          demographics['phone'] = phoneController.text;
+                        }
+                        if (caregiverController.text.isNotEmpty) {
+                          demographics['caregiver'] = caregiverController.text;
+                        }
+                        if (kinNameController.text.isNotEmpty) {
+                          demographics['kin_name'] = kinNameController.text;
+                        }
+                        if (kinPhoneController.text.isNotEmpty) {
+                          demographics['kin_phone'] = kinPhoneController.text;
+                        }
+                        if (therapyDrugController.text.isNotEmpty) {
+                          medicalConfig['therapy_drug'] = therapyDrugController.text;
+                        }
+                        if (therapyStartDateController.text.isNotEmpty) {
+                          medicalConfig['therapy_start_date'] = therapyStartDateController.text;
+                        }
+
+                        mutation.mutate({
+                          'demographics': demographics,
+                          'medical_config': medicalConfig,
+                        });
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0084FF),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: mutation.isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Update'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
         ),
       ],
     );

@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
+import { HealthLog } from "@src/validators";
 
-// Define sub-schemas first (before importing models that use them)
 export const DosageScheduleSchema = new Schema({
   monday: { type: Number, default: 0 },
   tuesday: { type: Number, default: 0 },
@@ -24,16 +24,11 @@ export const HealthLogSchema = new Schema({
   date: { type: Date, default: Date.now },
   type: {
     type: String,
-    enum: ['SIDE_EFFECT', 'ILLNESS', 'LIFESTYLE', 'OTHER_MEDS'],
+    enum: Object.values(HealthLog),
     required: true
   },
   description: { type: String, required: true },
-  severity: {
-    type: String,
-    enum: ['Normal', 'High', 'Emergency'],
-    default: 'Normal'
-  },
-  is_resolved: { type: Boolean, default: false }
+  feedback: { type: String, default: false }
 });
 
 // Now import models
@@ -41,6 +36,7 @@ import User from './user.model'
 import DoctorProfile from './doctorprofile.model'
 import PatientProfile from './patientprofile.model'
 import AdminProfile from './adminprofile.schema'
+
 
 export { User, DoctorProfile, PatientProfile, AdminProfile }
 
