@@ -72,9 +72,13 @@ export const updateProfile = z.object({
 export type UpdateProfileInput = z.infer<typeof updateProfile>
 
 export const UpdateReportSchema = z.object({
+  params: z.object({
+    op_num: z.string("Op_num should be a valid String"),
+    report_id: z.string("Report_id should be a valid String")
+  }),
   body: z.object({
-    is_critical: z.boolean("Critical Must be a Boolean Value"),
-    notes: z.string("Instructions To The patient Must To be a String")
+    is_critical: z.boolean("Critical Must be a Boolean Value").optional(),
+    notes: z.string("Instructions To The patient Must To be a String").optional()
   })
 })
 

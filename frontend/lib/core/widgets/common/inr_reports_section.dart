@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:frontend/core/widgets/common/premium_report_card.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// A widget for displaying INR history/reports.
+/// A premium widget for displaying INR history/reports.
 class InrReportsSection extends StatelessWidget {
   final List<dynamic> reports;
   final bool isLoading;
@@ -38,158 +39,11 @@ class InrReportsSection extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: reports.map((report) {
-        return _InrReportCard(report: report);
+        return PremiumReportCard(
+          report: report,
+          showActions: false, // Actions only shown on DoctorReportsPage
+        );
       }).toList(),
-    );
-  }
-}
-
-class _InrReportCard extends StatelessWidget {
-  final dynamic report;
-
-  const _InrReportCard({required this.report});
-
-  String _formatDate(dynamic date) {
-    if (date == null) return 'N/A';
-    try {
-      final DateTime dt = date is DateTime ? date : DateTime.parse(date.toString());
-      return DateFormat('dd MMM yyyy').format(dt);
-    } catch (_) {
-      return date.toString();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final inrValue = report['inr_value'];
-    final testDate = report['test_date'];
-    final isCritical = report['is_critical'] == true;
-    final notes = report['notes'];
-
-    // Determine INR status
-    final double? inr = inrValue is num ? inrValue.toDouble() : double.tryParse(inrValue?.toString() ?? '');
-    final bool isInRange = inr != null && inr >= 2.0 && inr <= 3.0;
-    final bool isLow = inr != null && inr < 2.0;
-    final bool isHigh = inr != null && inr > 3.0;
-
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-
-    if (isCritical) {
-      statusColor = const Color(0xFFDC2626);
-      statusText = 'Critical';
-      statusIcon = Icons.warning_rounded;
-    } else if (isInRange) {
-      statusColor = const Color(0xFF16A34A);
-      statusText = 'In Range';
-      statusIcon = Icons.check_circle_rounded;
-    } else if (isLow) {
-      statusColor = const Color(0xFFF59E0B);
-      statusText = 'Low';
-      statusIcon = Icons.arrow_downward_rounded;
-    } else if (isHigh) {
-      statusColor = const Color(0xFFEA580C);
-      statusText = 'High';
-      statusIcon = Icons.arrow_upward_rounded;
-    } else {
-      statusColor = const Color(0xFF6B7280);
-      statusText = 'Unknown';
-      statusIcon = Icons.help_outline_rounded;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isCritical ? const Color(0xFFFECACA) : const Color(0xFFE5E7EB),
-          width: isCritical ? 2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // INR Value Circle
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-              border: Border.all(color: statusColor, width: 2),
-            ),
-            child: Center(
-              child: Text(
-                inr?.toStringAsFixed(1) ?? '-',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(statusIcon, size: 16, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: statusColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 14, color: Color(0xFF6B7280)),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDate(testDate),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                  ],
-                ),
-                if (notes != null && notes.toString().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    notes.toString(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF9CA3AF),
-                      fontStyle: FontStyle.italic,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -201,35 +55,44 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(32),
+      width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(
-            Icons.science_outlined,
-            size: 48,
-            color: Color(0xFF9CA3AF),
-          ),
-          SizedBox(height: 12),
-          Text(
-            'No INR Reports',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF6B7280),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.science_outlined,
+              size: 40,
+              color: Colors.grey[400],
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 16),
           Text(
-            'No INR test results have been recorded yet.',
+            'No INR Reports',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No INR test results have been recorded yet for this patient.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.outfit(
               fontSize: 14,
-              color: Color(0xFF9CA3AF),
+              color: const Color(0xFF6B7280),
+              height: 1.5,
             ),
           ),
         ],
@@ -250,7 +113,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFFECACA)),
       ),
       child: Column(
@@ -265,17 +128,24 @@ class _ErrorState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: GoogleFonts.outfit(
               fontSize: 14,
-              color: Color(0xFFDC2626),
+              color: const Color(0xFFDC2626),
+              fontWeight: FontWeight.w500,
             ),
           ),
           if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            TextButton.icon(
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
             ),
           ],
         ],

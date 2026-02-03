@@ -20,7 +20,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       image: 'assets/onboarding/tracking.png',
     ),
     OnboardingData(
-      title: 'Team Collaboration',
+      title: 'Team Collaboration',             
       description: 'Work together efficiently and manage your health journey in one centralized platform with doctors and caregivers.',
       image: 'assets/onboarding/collaboration.png',
     ),
@@ -58,9 +58,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _finishOnboarding() {
-    // Navigate to the patient home or doctor dashboard depending on user role
-    // For now, let's go to patient as the user requested for patient page before
-    Navigator.of(context).pushReplacementNamed(AppRoutes.patient);
+    final bool isDoctor = ModalRoute.of(context)?.settings.arguments as bool? ?? false;
+    final String route = isDoctor ? AppRoutes.doctorDashboard : AppRoutes.patient;
+    Navigator.of(context).pushReplacementNamed(route);
   }
 
   @override

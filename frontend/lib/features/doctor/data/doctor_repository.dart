@@ -51,6 +51,10 @@ class DoctorRepository {
     return inrHistory is List ? inrHistory : [];
   }
 
+  Future<void> updateReport(String opNumber, String reportId, Map<String, dynamic> data) async {
+    await _apiClient.put('${AppStrings.doctorPatientsPath}/$opNumber/reports/$reportId', data: data);
+  }
+
   Future<void> reassignPatient(String opNumber, String newDoctorId) async {
     await _apiClient.patch('${AppStrings.doctorPatientsPath}/$opNumber/reassign', data: { 'new_doctor_id': newDoctorId });
   }

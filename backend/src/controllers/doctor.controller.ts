@@ -3,7 +3,7 @@ import { ApiError, ApiResponse, asyncHandler } from '@src/utils'
 import { StatusCodes } from 'http-status-codes'
 import { DoctorProfile, PatientProfile, User } from '@src/models'
 import { UserType } from '@src/validators'
-import type { CreatePatientInput, UpdateProfileInput } from '@src/validators/doctor.validator'
+import type { CreatePatientInput, UpdateProfileInput, UpdateReportInput } from '@src/validators/doctor.validator'
 import mongoose from 'mongoose'
 import { uploadFile } from '@src/utils/fileUpload'
 import logger from '@src/utils/logger'
@@ -163,6 +163,29 @@ export const getReports = asyncHandler(async (req: Request, res: Response) => {
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'INR reports fetched successfully', { inr_history: patient?.inr_history || [] }))
 })
 
+export const updateReport = asyncHandler(async (req: Request<UpdateReportInput['params'], {}, UpdateReportInput['body']>, res: Response) => {
+  const { op_num, report_id } = req.params
+  const { notes, is_critical } = req.body
+  const patient = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
+  const patientProfile = await PatientProfile.findById(patient?.profile_id)
+
+  if (!patientProfile.assigned_doctor_id.equals(req.user.user_id)) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized')
+  }
+
+  const report = patientProfile.inr_history.id(report_id)
+  if (!report) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found')
+  }
+
+  if (notes !== undefined) report.notes = notes;
+  if (is_critical !== undefined) report.is_critical = is_critical;
+
+  await patientProfile.save()
+
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Report updated successfully', { report }))
+})
+
 export const updateNextReview = asyncHandler(async (req: Request, res: Response) => {
   const { date } = req.body
   const { op_num } = req.params
@@ -257,15 +280,15 @@ export const updateReportsInstructions = asyncHandler(async (req: Request, res: 
 
 })
 
-export const updateProfilePicture = async(req: Request, res: Response) => {
-  if(!req.file){
-    throw new ApiError(StatusCodes.BAD_REQUEST,"Image is required for setting up profile picture")
+export const updateProfilePicture = async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Image is required for setting up profile picture")
   }
   const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
-    if (!allowedMimeTypes.includes(req.file.mimetype)) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid file type. Only PNG, JPEG, JPG, and WEBP images are allowed')
-    }
-  const {user_id} = req.user
+  if (!allowedMimeTypes.includes(req.file.mimetype)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid file type. Only PNG, JPEG, JPG, and WEBP images are allowed')
+  }
+  const { user_id } = req.user
 
   let fileUrl = ''
   try {

@@ -44,7 +44,11 @@ class _LoginPageState extends State<LoginPage> {
       const SnackBar(content: Text('Login successful')),
     );
 
-    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.onboarding, (previous) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.onboarding,
+      (previous) => false,
+      arguments: response.user.isDoctor,
+    );
   }
 
   void _handleError(Object error) {

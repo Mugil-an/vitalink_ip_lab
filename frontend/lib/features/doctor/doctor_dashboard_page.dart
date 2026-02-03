@@ -7,6 +7,7 @@ import 'package:frontend/features/doctor/models/patient_model.dart';
 import 'package:styled_widget/styled_widget.dart';
 import 'package:frontend/features/doctor/add_patient_page.dart';
 import 'package:frontend/features/doctor/doctor_profile_page.dart';
+import 'package:frontend/features/doctor/doctor_reports_page.dart';
 import 'package:frontend/features/doctor/view_patient_page.dart';
 
 class DoctorDashboardPage extends StatefulWidget {
@@ -77,7 +78,7 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
                 case 1:
                   return const AddPatientForm();
                 case 2:
-                  return const _PlaceholderPage(label: 'Reports');
+                  return const DoctorReportsPage();
                 case 3:
                   return const DoctorProfilePage();
                 case 0:
