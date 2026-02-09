@@ -1,4 +1,3 @@
-import 'module-alias/register';
 import app from "./app";
 import { config } from "./config";
 import connectDB from "./config/db";
