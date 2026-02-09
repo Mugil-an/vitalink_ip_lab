@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "buildCommand": "cd backend && npm install && npm run build",
+  "outputDirectory": "backend/build",
+  "installCommand": "cd backend && npm install",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/src/server.js"
+    }
+  ]
+}
