@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { ApiError, ApiResponse, asyncHandler } from "@src/utils";
+import { ApiError, ApiResponse, asyncHandler } from "@alias/utils";
 import { StatusCodes } from "http-status-codes";
-import { DoctorProfile, User, PatientProfile } from "@src/models";
-import { UserType } from '@src/validators'
-import type { createDoctorType, createPatientType, ReassignDoctorType, updateDoctorType, updatePatientType } from '@src/validators/admin.validator'
+import { DoctorProfile, User, PatientProfile } from "@alias/models";
+import { UserType } from '@alias/validators'
+import type { createDoctorType, createPatientType, ReassignDoctorType, updateDoctorType, updatePatientType } from '@alias/validators/admin.validator'
 
 export const createDoctor = asyncHandler(async (req: Request<{}, {}, createDoctorType['body']>, res: Response) => {
   // TODO: Include Profile Picture Logic, conform password also

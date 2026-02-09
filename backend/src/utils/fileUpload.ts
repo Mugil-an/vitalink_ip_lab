@@ -1,7 +1,7 @@
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import client from '@src/config/s3-client'
-import { config } from '@src/config'
+import client from '@alias/config/s3-client'
+import { config } from '@alias/config'
 import path from 'path'
 
 function buildS3Key(folder:string, originalName: string) {

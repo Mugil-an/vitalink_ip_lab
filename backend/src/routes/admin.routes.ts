@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticate, AllowAdmin, validate } from '@src/middlewares'
+import { authenticate, AllowAdmin, validate } from '@alias/middlewares'
 import {
 	createDoctor,
 	getAllDoctors,
@@ -10,14 +10,14 @@ import {
 	getPatientById,
 	updatePatient,
 	reassignPatient,
-} from '@src/controllers/admin.controller'
+} from '@alias/controllers/admin.controller'
 import {
 	createDoctor as createDoctorSchema,
 	createPatient as createPatientSchema,
 	updateDoctor as updateDoctorSchema,
 	updatePatient as updatePatientSchema,
 	reassignPatientSchema,
-} from '@src/validators/admin.validator'
+} from '@alias/validators/admin.validator'
 
 const router = Router()
 

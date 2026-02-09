@@ -1,8 +1,8 @@
 import 'dotenv/config'
-import connectDB from '@src/config/db'
-import { User, AdminProfile } from '@src/models'
-import { UserType } from '@src/validators'
-import logger from '@src/utils/logger'
+import connectDB from '@alias/config/db'
+import { User, AdminProfile } from '@alias/models'
+import { UserType } from '@alias/validators'
+import logger from '@alias/utils/logger'
 
 async function main() {
   const loginId = process.argv[2] || process.env.ADMIN_LOGIN_ID

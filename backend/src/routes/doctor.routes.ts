@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticate, AllowDoctor, validate } from '@src/middlewares'
+import { authenticate, AllowDoctor, validate } from '@alias/middlewares'
 import {
     addPatient,
     editPatientDosage,
@@ -13,8 +13,8 @@ import {
     UpdateProfile,
     updateProfilePicture,
     updateReport,
-} from '@src/controllers/doctor.controller'
-import { createPatient, UpdateReportSchema } from '@src/validators/doctor.validator'
+} from '@alias/controllers/doctor.controller'
+import { createPatient, UpdateReportSchema } from '@alias/validators/doctor.validator'
 import multer from 'multer'
 
 const upload = multer({ dest: 'uploads/profiles/' })

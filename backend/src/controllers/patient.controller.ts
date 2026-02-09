@@ -1,11 +1,11 @@
 import { Request, Response } from 'express'
-import { ApiError, ApiResponse, asyncHandler } from '@src/utils'
+import { ApiError, ApiResponse, asyncHandler } from '@alias/utils'
 import { StatusCodes } from 'http-status-codes'
-import { PatientProfile, User } from '@src/models'
-import { UserType } from '@src/validators'
-import type { ReportInput, TakeDosageInput, UpdateHealthLog, UpdateProfileInput } from '@src/validators/patient.validator'
-import logger from '@src/utils/logger'
-import { uploadFile } from '@src/utils/fileUpload'
+import { PatientProfile, User } from '@alias/models'
+import { UserType } from '@alias/validators'
+import type { ReportInput, TakeDosageInput, UpdateHealthLog, UpdateProfileInput } from '@alias/validators/patient.validator'
+import logger from '@alias/utils/logger'
+import { uploadFile } from '@alias/utils/fileUpload'
 
 export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 	const { user_id } = req.user

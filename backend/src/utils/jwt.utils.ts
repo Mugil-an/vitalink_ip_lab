@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
-import { config } from '@src/config'
-import { JWTPayload } from '@src/validators'
+import { config } from '@alias/config'
+import { JWTPayload } from '@alias/validators'
 
 export function generateToken(payload: JWTPayload): string {
   try {

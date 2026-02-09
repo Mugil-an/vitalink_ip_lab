@@ -1,12 +1,12 @@
 import { Request, Response } from 'express'
-import { ApiError, ApiResponse, asyncHandler } from '@src/utils'
+import { ApiError, ApiResponse, asyncHandler } from '@alias/utils'
 import { StatusCodes } from 'http-status-codes'
-import { DoctorProfile, PatientProfile, User } from '@src/models'
-import { UserType } from '@src/validators'
-import type { CreatePatientInput, UpdateProfileInput, UpdateReportInput } from '@src/validators/doctor.validator'
+import { DoctorProfile, PatientProfile, User } from '@alias/models'
+import { UserType } from '@alias/validators'
+import type { CreatePatientInput, UpdateProfileInput, UpdateReportInput } from '@alias/validators/doctor.validator'
 import mongoose from 'mongoose'
-import { uploadFile } from '@src/utils/fileUpload'
-import logger from '@src/utils/logger'
+import { uploadFile } from '@alias/utils/fileUpload'
+import logger from '@alias/utils/logger'
 
 export const getPatients = asyncHandler(async (req: Request, res: Response) => {
   const { user_id } = req.user

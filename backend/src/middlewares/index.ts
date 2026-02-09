@@ -1,10 +1,10 @@
 export { authenticate, authorize } from './authProvider.middleware'
 export { validate } from './ValidateResource'
 import { Request, Response, NextFunction } from 'express'
-import { UserType } from '@src/validators'
-import { ApiError, asyncHandler } from '@src/utils'
+import { UserType } from '@alias/validators'
+import { ApiError, asyncHandler } from '@alias/utils'
 import { StatusCodes } from 'http-status-codes'
-import { User } from '@src/models'
+import { User } from '@alias/models'
 
 export const AllowDoctor = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { user_id, user_type } = req.user;

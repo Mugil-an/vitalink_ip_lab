@@ -1,8 +1,8 @@
 import 'dotenv/config'
-import connectDB from '@src/config/db'
-import { User, PatientProfile } from '@src/models'
-import { UserType } from '@src/validators'
-import logger from '@src/utils/logger'
+import connectDB from '@alias/config/db'
+import { User, PatientProfile } from '@alias/models'
+import { UserType } from '@alias/validators'
+import logger from '@alias/utils/logger'
 
 async function main() {
   const doctorLoginId = process.argv[2]

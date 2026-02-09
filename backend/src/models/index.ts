@@ -1,5 +1,5 @@
 import { Schema } from "mongoose";
-import { HealthLog } from "@src/validators";
+import { HealthLog } from "@alias/validators";
 
 export const DosageScheduleSchema = new Schema({
   monday: { type: Number, default: 0 },

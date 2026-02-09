@@ -1,10 +1,10 @@
 import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
-import { asyncHandler, ApiError, ApiResponse, generateToken } from '@src/utils'
-import {User} from '@src/models'
-import { comparePasswords } from '@src/utils'
-import { UserType } from '@src/validators'
-import { LoginInput } from '@src/validators/user.validator'
+import { asyncHandler, ApiError, ApiResponse, generateToken } from '@alias/utils'
+import {User} from '@alias/models'
+import { comparePasswords } from '@alias/utils'
+import { UserType } from '@alias/validators'
+import { LoginInput } from '@alias/validators/user.validator'
 
 
 export const loginController = asyncHandler(async (req: Request<{}, {} , LoginInput["body"]>, res: Response) => {

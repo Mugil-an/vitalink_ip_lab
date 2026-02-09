@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { config } from '@src/config'
+import { config } from '@alias/config'
 
 const client = new S3Client({
   region: "us-east-1",

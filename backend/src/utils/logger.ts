@@ -1,4 +1,4 @@
-import { config } from '@src/config'
+import { config } from '@alias/config'
 import { createLogger, format, transports } from 'winston'
 
 const logFormat = format.printf(({ level, message, timestamp }) => {

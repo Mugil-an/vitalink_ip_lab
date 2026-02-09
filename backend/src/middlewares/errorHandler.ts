@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 import ApiError from "../utils/ApiError";
 import ApiResponse from "../utils/ApiResponse";
 import { StatusCodes } from "http-status-codes";
-import logger from "@src/utils/logger";
+import logger from "@alias/utils/logger";
 
 const errorHandler: ErrorRequestHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ZodError) {

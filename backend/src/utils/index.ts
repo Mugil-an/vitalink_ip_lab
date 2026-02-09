@@ -1,5 +1,5 @@
-import { Admin, Doctor, Patient } from "@src/models";
-import { UserType } from "@src/validators";
+import { Admin, Doctor, Patient } from "@alias/models";
+import { UserType } from "@alias/validators";
 import ApiResponse from "./ApiResponse";
 import ApiError from "./ApiError";
 

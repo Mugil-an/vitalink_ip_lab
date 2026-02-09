@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { StatusCodes } from 'http-status-codes'
-import { verifyToken, extractTokenFromHeader } from '@src/utils/jwt.utils'
-import { JWTPayload, UserType } from '@src/validators'
+import { verifyToken, extractTokenFromHeader } from '@alias/utils/jwt.utils'
+import { JWTPayload, UserType } from '@alias/validators'
 
 /**
  * Extend Express Request to include user data

@@ -1,5 +1,5 @@
 import { Request } from 'express'
-import { JWTPayload } from '@src/validators'
+import { JWTPayload } from '@alias/validators'
 
 /**
  * Extend Express Request type to include user authentication data

@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { validate } from "@src/middlewares/ValidateResource";
-import { authenticate } from "@src/middlewares/authProvider.middleware";
-import { loginSchema } from "@src/validators/user.validator";
+import { validate } from "@alias/middlewares/ValidateResource";
+import { authenticate } from "@alias/middlewares/authProvider.middleware";
+import { loginSchema } from "@alias/validators/user.validator";
 import {
   loginController,
   logoutController,
   getMeController,
-} from "@src/controllers/auth.controller";
+} from "@alias/controllers/auth.controller";
 
 const router = Router();
 

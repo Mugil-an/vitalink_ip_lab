@@ -1,5 +1,5 @@
-import { generateSalt, hashPassword } from "@src/utils";
-import { UserType } from "@src/validators";
+import { generateSalt, hashPassword } from "@alias/utils";
+import { UserType } from "@alias/validators";
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema({
