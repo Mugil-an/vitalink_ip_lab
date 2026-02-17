@@ -496,6 +496,7 @@ class _PatientPageState extends State<PatientPage> {
 
   Widget _buildPrescriptionTable(Map<String, dynamic> dosage) {
     final days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    final dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -529,10 +530,12 @@ class _PatientPageState extends State<PatientPage> {
               ],
             ),
           ),
-          ...days.map((day) {
+          ...List.generate(days.length, (index) {
+            final day = days[index];
+            final dayKey = dayKeys[index];
             final isLast = day == 'SUN';
-            final doseList = dosage[day.toLowerCase()];
-            final dose = (doseList is List && doseList.isNotEmpty) ? doseList[0]['dose'] : 0;
+            final doseValue = dosage[dayKey];
+            final dose = (doseValue is num) ? doseValue : (doseValue is String ? double.tryParse(doseValue) ?? 0 : 0);
             return Container(
               decoration: BoxDecoration(
                 border: Border(bottom: isLast ? BorderSide.none : const BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),

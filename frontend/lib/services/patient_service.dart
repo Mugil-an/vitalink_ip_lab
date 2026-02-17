@@ -139,12 +139,50 @@ class PatientService {
   }) async {
     _setupInterceptors();
     try {
-      await _dio.post('/mark-taken', data: {
+      await _dio.post('/dosage', data: {
         'date': date,
         'dose': dose,
       });
     } on DioException catch (e) {
       throw Exception('Failed to mark dose as taken: ${e.message}');
+    }
+  }
+
+  // Get dosage calendar with optional months and start_date parameters
+  static Future<Map<String, dynamic>> getDosageCalendar({
+    int months = 3,
+    String? startDate,
+  }) async {
+    _setupInterceptors();
+    try {
+      final queryParams = <String, dynamic>{
+        'months': months,
+      };
+      if (startDate != null) {
+        queryParams['start_date'] = startDate;
+      }
+
+      final response = await _dio.get('/dosage-calendar', queryParameters: queryParams);
+      
+      if (response.statusCode == 200) {
+        final data = response.data['data'];
+        return {
+          'calendar_data': (data['calendar_data'] as List).map((item) => {
+            'date': item['date'] as String,
+            'status': item['status'] as String,
+            'dosage': (item['dosage'] as num).toDouble(),
+            'day_of_week': item['day_of_week'] as String,
+          }).toList(),
+          'date_range': {
+            'start': data['date_range']['start'] as String,
+            'end': data['date_range']['end'] as String,
+          },
+          'therapy_start': data['therapy_start'] as String,
+        };
+      }
+      throw Exception('Failed to fetch calendar data');
+    } on DioException catch (e) {
+      throw Exception('Error fetching dosage calendar: ${e.message}');
     }
   }
 

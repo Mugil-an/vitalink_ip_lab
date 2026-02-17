@@ -7,6 +7,7 @@ import {
 	getReport,
 	submitReport,
 	takeDosage,
+	getDosageCalendar,
 	updateHealthLogs,
 	updateProfilePicture,
 	updateProfile,
@@ -22,6 +23,7 @@ router.route('/profile').get(authenticate, AllowPatient, getProfile).put(authent
 router.get('/reports', authenticate, AllowPatient, getReport)
 router.post('/reports', authenticate, AllowPatient, upload.single('file'), validate(reportSchema), submitReport)
 router.get('/missed-doses', authenticate, AllowPatient, missedDoses)
+router.get('/dosage-calendar', authenticate, AllowPatient, getDosageCalendar)
 router.post('/dosage', authenticate, AllowPatient, validate(takeDosageSchema), takeDosage)
 router.post('/health-logs', authenticate, AllowPatient, validate(updateHealthLogSchema), updateHealthLogs)
 router.post("/profile-pic", authenticate, AllowPatient, uploadpic.single('file'), updateProfilePicture)

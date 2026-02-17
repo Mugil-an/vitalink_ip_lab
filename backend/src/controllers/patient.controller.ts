@@ -91,12 +91,16 @@ export const missedDoses = asyncHandler(async (req: Request<{}, {}, {}>, res: Re
 	}
 
 	const therapyStart = patient.medical_config?.therapy_start_date
-	const dosage = patient.weekly_dosage as Record<string, number> | undefined
+	const dosage = patient.weekly_dosage
+
 	if (!therapyStart || !dosage) {
 		throw new ApiError(StatusCodes.BAD_REQUEST, 'Therapy start date or dosage schedule is missing')
 	}
 
-	const medicationDates = getMedicationDates(therapyStart, dosage)
+	// Convert Mongoose document to plain object
+	const dosagePlain: Record<string, number> = (dosage as any)?.toObject ? (dosage as any).toObject() : JSON.parse(JSON.stringify(dosage))
+
+	const medicationDates = getMedicationDates(therapyStart, dosagePlain)
 	const takenDates: (Date | string)[] = (patient.medical_config?.taken_doses || []).map((d: any) =>
 		d instanceof Date ? d : new Date(d)
 	)
@@ -118,9 +122,6 @@ export const missedDoses = asyncHandler(async (req: Request<{}, {}, {}>, res: Re
 		}
 	})
 
-	console.log("Recent Missed Doses", recent_missed_doses, remaining_missed)
-
-
 	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Missed doses calculated',
 		{ recent_missed_doses, missed_doses: remaining_missed }))
 })
@@ -131,17 +132,120 @@ export const takeDosage = asyncHandler(async (req: Request<{}, {}, TakeDosageInp
 	const { date } = req.body
 	const parsedDate = date instanceof Date ? date : parseDDMMYYYY(date)
 
-	const patient = await PatientProfile.findByIdAndUpdate(
+	// Normalize the date to midnight for consistent comparison
+	const normalizedDate = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate())
+
+	// Get the patient profile
+	const patient = await PatientProfile.findById(patientUser.profile_id)
+	if (!patient) {
+		throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
+	}
+
+	// Check if this date is already marked as taken
+	const takenDoses = patient.medical_config?.taken_doses || []
+	const alreadyTaken = takenDoses.some((takenDate: Date) => {
+		const normalizedTaken = new Date(takenDate.getFullYear(), takenDate.getMonth(), takenDate.getDate())
+		return normalizedTaken.getTime() === normalizedDate.getTime()
+	})
+
+	if (alreadyTaken) {
+		throw new ApiError(StatusCodes.BAD_REQUEST, 'This dose has already been marked as taken')
+	}
+
+	// Add the dose to taken_doses using $addToSet to prevent duplicates
+	const updatedPatient = await PatientProfile.findByIdAndUpdate(
 		patientUser.profile_id,
 		{
-			$push: {
-				'medical_config.taken_doses': parsedDate,
+			$addToSet: {
+				'medical_config.taken_doses': normalizedDate,
 			},
 		},
 		{ new: true }
 	)
 
-	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Dosage logged', { patient }))
+	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Dosage logged successfully', { patient: updatedPatient }))
+})
+
+export const getDosageCalendar = asyncHandler(async (req: Request, res: Response) => {
+	const patientUser = await User.findById(req.user.user_id)
+
+	const patient = await PatientProfile.findById(patientUser.profile_id)
+	if (!patient) {
+		throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
+	}
+
+	const therapyStart = patient.medical_config?.therapy_start_date
+	const dosage = patient.weekly_dosage
+
+	if (!therapyStart || !dosage) {
+		throw new ApiError(StatusCodes.BAD_REQUEST, 'Therapy start date or dosage schedule is missing')
+	}
+
+	// Parse query parameters
+	const monthsParam = req.query.months ? parseInt(req.query.months as string) : 3
+	const months = Math.min(Math.max(monthsParam, 1), 6) // Limit between 1 and 6 months
+	const startDateParam = req.query.start_date as string | undefined
+
+	// Calculate date range
+	let rangeEnd: Date
+	let rangeStart: Date
+
+	if (startDateParam) {
+		// If start_date provided, calculate from there
+		rangeEnd = parseDDMMYYYY(startDateParam)
+		rangeStart = new Date(rangeEnd)
+		rangeStart.setMonth(rangeStart.getMonth() - months)
+	} else {
+		// Default: from today backwards
+		rangeEnd = new Date()
+		rangeStart = new Date()
+		rangeStart.setMonth(rangeStart.getMonth() - months)
+	}
+
+	// Don't go before therapy start date
+	const therapyStartDate = new Date(therapyStart)
+	if (rangeStart < therapyStartDate) {
+		rangeStart = therapyStartDate
+	}
+
+	// Convert Mongoose document to plain object
+	const dosagePlain: Record<string, number> = (dosage as any)?.toObject ? (dosage as any).toObject() : JSON.parse(JSON.stringify(dosage))
+
+	// Get all scheduled medication dates in the range
+	const allMedicationDates = getMedicationDatesInRange(rangeStart, rangeEnd, dosagePlain)
+
+	// Get taken doses
+	const takenDoses: Date[] = (patient.medical_config?.taken_doses || []).map((d: any) =>
+		d instanceof Date ? d : new Date(d)
+	)
+
+	// Build calendar data
+	const calendarData = allMedicationDates.map(({ date, dayOfWeek }) => {
+		const dateStr = formatDDMMYYYY(date)
+		const isTaken = takenDoses.some(takenDate => {
+			return formatDDMMYYYY(takenDate) === dateStr
+		})
+
+		const scheduledDosage = dosagePlain[dayOfWeek] || 0
+
+		return {
+			date: dateStr,
+			status: isTaken ? 'taken' : (date <= new Date() ? 'missed' : 'scheduled'),
+			dosage: scheduledDosage,
+			day_of_week: dayOfWeek
+		}
+	})
+
+	res.status(StatusCodes.OK).json(
+		new ApiResponse(StatusCodes.OK, 'Calendar data fetched', {
+			calendar_data: calendarData,
+			date_range: {
+				start: formatDDMMYYYY(rangeStart),
+				end: formatDDMMYYYY(rangeEnd),
+			},
+			therapy_start: formatDDMMYYYY(therapyStartDate)
+		})
+	)
 })
 
 export const updateProfile = asyncHandler(async (req: Request<{}, {}, UpdateProfileInput['body']>, res: Response) => {
@@ -253,13 +357,13 @@ function formatDDMMYYYY(d: Date): string {
 
 function getMedicationDates(startDate: Date, weeklyDosage: Record<string, number>): string[] {
 	const daysMap: Record<string, number> = {
-		monday: 0,
-		tuesday: 1,
-		wednesday: 2,
-		thursday: 3,
-		friday: 4,
-		saturday: 5,
-		sunday: 6,
+		sunday: 0,
+		monday: 1,
+		tuesday: 2,
+		wednesday: 3,
+		thursday: 4,
+		friday: 5,
+		saturday: 6,
 	}
 
 	const targetDays = Object.entries(weeklyDosage)
@@ -275,6 +379,42 @@ function getMedicationDates(startDate: Date, weeklyDosage: Record<string, number
 	while (current <= today) {
 		if (targetDays.includes(current.getDay())) {
 			dates.push(formatDDMMYYYY(current))
+		}
+		current.setDate(current.getDate() + 1)
+	}
+
+	return dates
+}
+
+function getMedicationDatesInRange(
+	startDate: Date,
+	endDate: Date,
+	weeklyDosage: Record<string, number>
+): Array<{ date: Date; dayOfWeek: string }> {
+	const daysMap: Record<number, string> = {
+		0: 'sunday',
+		1: 'monday',
+		2: 'tuesday',
+		3: 'wednesday',
+		4: 'thursday',
+		5: 'friday',
+		6: 'saturday',
+	}
+
+	const targetDays = Object.entries(weeklyDosage)
+		.filter(([, val]) => typeof val === 'number' && val > 0)
+		.map(([day]) => day)
+
+	const dates: Array<{ date: Date; dayOfWeek: string }> = []
+	let current = new Date(startDate)
+
+	while (current <= endDate) {
+		const dayOfWeek = daysMap[current.getDay()]
+		if (targetDays.includes(dayOfWeek)) {
+			dates.push({
+				date: new Date(current),
+				dayOfWeek
+			})
 		}
 		current.setDate(current.getDate() + 1)
 	}

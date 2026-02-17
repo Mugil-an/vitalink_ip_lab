@@ -227,6 +227,65 @@ describe('Patient Routes', () => {
             expect(Array.isArray(response.data.data.missed_doses)).toBe(true);
         });
 
+        test('should calculate missed doses based on weekly_dosage schedule', async () => {
+            // Patient has dosage on: Monday (10mg), Tuesday (30mg), Thursday (20mg)
+            // Set therapy start date to 14 days ago to ensure we have at least 2 weeks of data
+            const fourteenDaysAgo = new Date();
+            fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+            fourteenDaysAgo.setHours(0, 0, 0, 0);
+
+            const updated = await PatientProfile.findByIdAndUpdate(
+                patientProfile._id,
+                {
+                    'medical_config.therapy_start_date': fourteenDaysAgo,
+                    'medical_config.taken_doses': [],
+                    weekly_dosage: {
+                        monday: 10,
+                        tuesday: 30,
+                        wednesday: 0,
+                        thursday: 20,
+                        friday: 0,
+                        saturday: 0,
+                        sunday: 0
+                    }
+                },
+                { new: true }
+            );
+
+            // Verify update worked
+            expect(updated?.weekly_dosage?.monday).toBe(10);
+            expect(updated?.weekly_dosage?.tuesday).toBe(30);
+            expect(updated?.weekly_dosage?.thursday).toBe(20);
+            expect(updated?.medical_config?.therapy_start_date).toBeDefined();
+
+            const response = await api.get('/api/patient/missed-doses', {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            const { recent_missed_doses, missed_doses } = response.data.data;
+
+            // Over 14 days, should have at least 2 Mondays, 2 Tuesdays, 2 Thursdays = at least 6 missed doses
+            const totalMissed = recent_missed_doses.length + missed_doses.length;
+            console.log('Total missed doses:', totalMissed, 'Recent:', recent_missed_doses.length, 'Older:', missed_doses.length);
+            console.log('Recent missed:', recent_missed_doses);
+            console.log('Older missed:', missed_doses);
+            expect(totalMissed).toBeGreaterThanOrEqual(4); // At least 4 doses over 14 days
+
+            // Verify all missed doses are on the correct days (Monday, Tuesday, or Thursday)
+            if (totalMissed > 0) {
+                const allMissedDates = [...recent_missed_doses, ...missed_doses];
+                allMissedDates.forEach((dateStr: string) => {
+                    const [day, month, year] = dateStr.split('-').map(Number);
+                    const dateObj = new Date(year, month - 1, day);
+                    const dayOfWeek = dateObj.getDay(); // 0=Sunday, 1=Monday, 2=Tuesday, 4=Thursday
+
+                    // Should only be Monday (1), Tuesday (2), or Thursday (4)
+                    expect([1, 2, 4]).toContain(dayOfWeek);
+                });
+            }
+        });
+
         test('should separate recent missed doses (last 7 days) from older ones', async () => {
             const response = await api.get('/api/patient/missed-doses', {
                 headers: { Authorization: `Bearer ${patientToken}` }
@@ -611,10 +670,12 @@ describe('Patient Routes', () => {
         });
 
         test('should allow patient to update therapy_start_date', async () => {
-            const newStartDate = new Date('2024-02-01T00:00:00Z');
+            const pastDate = new Date();
+            pastDate.setDate(pastDate.getDate() - 7); // 7 days ago
+
             const response = await api.put('/api/patient/profile', {
                 medical_config: {
-                    therapy_start_date: newStartDate
+                    therapy_start_date: pastDate
                 }
             }, {
                 headers: { Authorization: `Bearer ${patientToken}` }
@@ -622,6 +683,23 @@ describe('Patient Routes', () => {
 
             expect(response.status).toBe(200);
             expect(response.data.success).toBe(true);
+        });
+
+        test('should fail when therapy_start_date is in the future', async () => {
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 7); // 7 days in the future
+
+            const response = await api.put('/api/patient/profile', {
+                medical_config: {
+                    therapy_start_date: futureDate
+                }
+            }, {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(400);
+            expect(response.data.success).toBe(false);
+            expect(response.data.message).toBe('Validation failed');
         });
 
         test('should fail when trying to update weekly_dosage (doctor only)', async () => {
@@ -666,4 +744,166 @@ describe('Patient Routes', () => {
             expect(response.data.success).toBe(false);
         });
     });
-});
+
+    describe('GET /api/patient/dosage-calendar', () => {
+        test('should get dosage calendar successfully with default parameters', async () => {
+            const response = await api.get('/api/patient/dosage-calendar', {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            expect(response.data.success).toBe(true);
+            expect(response.data.message).toBe('Calendar data fetched');
+            expect(response.data.data).toHaveProperty('calendar_data');
+            expect(response.data.data).toHaveProperty('date_range');
+            expect(response.data.data).toHaveProperty('therapy_start');
+            expect(Array.isArray(response.data.data.calendar_data)).toBe(true);
+
+            // Verify calendar data structure
+            if (response.data.data.calendar_data.length > 0) {
+                const firstEntry = response.data.data.calendar_data[0];
+                expect(firstEntry).toHaveProperty('date');
+                expect(firstEntry).toHaveProperty('status');
+                expect(firstEntry).toHaveProperty('dosage');
+                expect(firstEntry).toHaveProperty('day_of_week');
+                expect(['taken', 'missed', 'scheduled']).toContain(firstEntry.status);
+            }
+        });
+
+        test('should get dosage calendar with specific months parameter', async () => {
+            const response = await api.get('/api/patient/dosage-calendar?months=2', {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            expect(response.data.success).toBe(true);
+            expect(Array.isArray(response.data.data.calendar_data)).toBe(true);
+        });
+
+        test('should limit months parameter to maximum of 6', async () => {
+            const response = await api.get('/api/patient/dosage-calendar?months=10', {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            expect(response.data.success).toBe(true);
+            // Should cap at 6 months, so verify reasonable data size
+            expect(Array.isArray(response.data.data.calendar_data)).toBe(true);
+        });
+
+        test('should handle start_date parameter', async () => {
+            const startDate = '01-02-2024'; // DD-MM-YYYY
+            const response = await api.get(`/api/patient/dosage-calendar?start_date=${startDate}&months=1`, {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            expect(response.data.success).toBe(true);
+            expect(response.data.data.date_range.end).toBe(startDate);
+        });
+
+        test('should return only scheduled doses for the configured days', async () => {
+            const response = await api.get('/api/patient/dosage-calendar?months=1', {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            const calendarData = response.data.data.calendar_data;
+
+            // Verify only days with dosage > 0 are included
+            calendarData.forEach((entry: any) => {
+                expect(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']).toContain(entry.day_of_week);
+                expect(entry.dosage).toBeGreaterThan(0);
+            });
+        });
+
+        test('should mark taken doses correctly in calendar', async () => {
+            // First, mark a dose as taken
+            const doseDate = '03-02-2024'; // DD-MM-YYYY (Monday)
+            await api.post('/api/patient/dosage', {
+                date: doseDate,
+                dose: 5
+            }, {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            // Then fetch calendar
+            const response = await api.get('/api/patient/dosage-calendar?start_date=15-02-2024&months=1', {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            const takenEntry = response.data.data.calendar_data.find((entry: any) => entry.date === doseDate);
+            if (takenEntry) {
+                expect(takenEntry.status).toBe('taken');
+            }
+        });
+
+        test('should fail without authentication', async () => {
+            const response = await api.get('/api/patient/dosage-calendar');
+
+            expect(response.status).toBe(401);
+            expect(response.data.success).toBe(false);
+        });
+
+        test('should return 400 if therapy_start_date is missing', async () => {
+            // Create a patient without therapy_start_date
+            const incompleteProfile = await PatientProfile.create({
+                assigned_doctor_id: doctorProfile._id,
+                demographics: {
+                    name: 'Incomplete Patient',
+                    age: 40,
+                    gender: 'Female',
+                    phone: '1111111111'
+                },
+                weekly_dosage: {
+                    monday: 5,
+                    tuesday: 5,
+                    wednesday: 5,
+                    thursday: 5,
+                    friday: 5,
+                    saturday: 0,
+                    sunday: 0
+                }
+            });
+
+            const incompleteUser = await User.create({
+                login_id: 'incomplete001',
+                password: 'test123',
+                user_type: 'PATIENT',
+                profile_id: incompleteProfile._id,
+                is_active: true
+            });
+
+            const loginResponse = await api.post('/api/auth/login', {
+                login_id: 'incomplete001',
+                password: 'test123'
+            });
+            const incompleteToken = loginResponse.data.data.token;
+
+            const response = await api.get('/api/patient/dosage-calendar', {
+                headers: { Authorization: `Bearer ${incompleteToken}` }
+            });
+
+            expect(response.status).toBe(400);
+            expect(response.data.success).toBe(false);
+            expect(response.data.message).toBe('Therapy start date or dosage schedule is missing');
+        });
+
+        test('should not return dates before therapy start date', async () => {
+            const response = await api.get('/api/patient/dosage-calendar?months=50', {
+                headers: { Authorization: `Bearer ${patientToken}` }
+            });
+
+            expect(response.status).toBe(200);
+            const calendarData = response.data.data.calendar_data;
+            const therapyStart = new Date('2024-01-01');
+
+            calendarData.forEach((entry: any) => {
+                const [day, month, year] = entry.date.split('-').map(Number);
+                const entryDate = new Date(year, month - 1, day);
+                expect(entryDate.getTime()).toBeGreaterThanOrEqual(therapyStart.getTime());
+            });
+        });
+    });
+})

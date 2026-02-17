@@ -124,6 +124,32 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Calendar Button
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushNamed(AppRoutes.patientDosageCalendar);
+                            },
+                            icon: const Icon(Icons.calendar_month_rounded, size: 20),
+                            label: const Text(
+                              'View Dosage Calendar',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
                         // Recent Missed Doses Section
                         DosageSection(
                           title: 'Missed Doses',
@@ -276,41 +302,81 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
   ) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text(
-          'Mark Dose as Taken',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+        contentPadding: const EdgeInsets.all(24),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.medication_rounded,
+                color: Colors.green.shade700,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Mark Dose as Taken',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 8),
             const Text(
               'Are you sure you want to mark this dose as taken?',
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontSize: 15,
+                color: Color(0xFF666666),
+                height: 1.5,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade50, Colors.green.shade100],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.green.shade200,
+                  width: 1.5,
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 18),
-                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    size: 20,
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 12),
                   Text(
                     date,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.green.shade900,
                     ),
                   ),
                 ],
@@ -319,42 +385,71 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: mutation.isLoading
-                ? null
-                : () {
-                    Navigator.pop(context);
-                    mutation.mutate({
-                      'date': date,
-                      'dose': 5.0, // Default dose value
-                    });
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: mutation.isLoading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  )
-                : const Text('Confirm'),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: mutation.isLoading
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          mutation.mutate({
+                            'date': date,
+                            'dose': 5.0, // Default dose value
+                          });
+                        },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: mutation.isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Confirm',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
         ],
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       ),
     );
   }

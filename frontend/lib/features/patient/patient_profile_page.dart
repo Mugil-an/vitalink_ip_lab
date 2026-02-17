@@ -183,6 +183,65 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Quick Actions Card
+                  _buildPremiumSection(
+                    title: 'Quick Actions',
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushNamed(AppRoutes.patientDosageCalendar);
+                            },
+                            icon: const Icon(Icons.calendar_month_rounded, size: 22),
+                            label: const Text(
+                              'Dosage Calendar',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushNamed(AppRoutes.patientTakeDosage);
+                            },
+                            icon: const Icon(Icons.medication_rounded, size: 22),
+                            label: const Text(
+                              'Track Doses',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
                   // INR Trend Graph
                   _buildPremiumSection(
                     title: 'INR Trend History',
