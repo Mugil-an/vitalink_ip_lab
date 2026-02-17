@@ -169,7 +169,8 @@ export const updateReport = asyncHandler(async (req: Request<UpdateReportInput['
   const patient = await User.findOne({ login_id: op_num, user_type: UserType.PATIENT })
   const patientProfile = await PatientProfile.findById(patient?.profile_id)
 
-  if (!patientProfile.assigned_doctor_id.equals(req.user.user_id)) {
+  const doctor = await User.findById(req.user.user_id)
+  if (!patientProfile.assigned_doctor_id.equals(doctor.profile_id)) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized')
   }
 
@@ -283,7 +284,7 @@ export const UpdateProfile = asyncHandler(async (req: Request<{}, {}, UpdateProf
 })
 
 export const getDoctors = asyncHandler(async (req: Request, res: Response) => {
-  const doctors = await User.find({ user_type: UserType.DOCTOR }).populate('profile_id', '-password -salt').lean()
+  const doctors = await User.find({ user_type: UserType.DOCTOR }).populate('profile_id').select('-password -salt').lean()
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Doctors fetched successfully", { doctors }))
 })
 
@@ -305,7 +306,6 @@ export const updateReportsInstructions = asyncHandler(async (req: Request<Update
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
   }
 
-  // Get doctor's profile_id from user_id
   const doctor = await User.findById(req.user.user_id)
   if (!doctor) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Doctor not found')

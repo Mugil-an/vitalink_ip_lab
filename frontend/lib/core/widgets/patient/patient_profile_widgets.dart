@@ -488,7 +488,6 @@ class _PatientEditProfileModalState extends State<PatientEditProfileModal> {
   late final TextEditingController _caregiverController;
   late final TextEditingController _kinNameController;
   late final TextEditingController _kinPhoneController;
-  late final TextEditingController _therapyDrugController;
   late final TextEditingController _therapyStartController;
   
   String? _selectedGender;
@@ -533,7 +532,6 @@ class _PatientEditProfileModalState extends State<PatientEditProfileModal> {
     _caregiverController = TextEditingController(text: widget.profile['caregiver'] ?? '');
     _kinNameController = TextEditingController(text: widget.profile['kinName'] ?? '');
     _kinPhoneController = TextEditingController(text: widget.profile['kinPhone'] ?? '');
-    _therapyDrugController = TextEditingController(text: widget.profile['therapyDrug'] ?? '');
     _therapyStartController = TextEditingController(text: widget.profile['therapyStartDate'] ?? '');
     _selectedGender = widget.profile['gender'];
 
@@ -554,7 +552,6 @@ class _PatientEditProfileModalState extends State<PatientEditProfileModal> {
     _caregiverController.dispose();
     _kinNameController.dispose();
     _kinPhoneController.dispose();
-    _therapyDrugController.dispose();
     _therapyStartController.dispose();
     super.dispose();
   }
@@ -572,19 +569,37 @@ class _PatientEditProfileModalState extends State<PatientEditProfileModal> {
       final medicalConfig = <String, dynamic>{};
 
       demographics['name'] = _nameController.text.trim();
-      demographics['age'] = int.tryParse(_ageController.text) ?? 0;
-      demographics['gender'] = _selectedGender;
-      demographics['phone'] = _phoneController.text.trim();
-      demographics['caregiver'] = _caregiverController.text.trim();
-      demographics['kin_name'] = _kinNameController.text.trim();
-      demographics['kin_phone'] = _kinPhoneController.text.trim();
+      if (_ageController.text.isNotEmpty) {
+        demographics['age'] = int.tryParse(_ageController.text) ?? 0;
+      }
+      if (_selectedGender != null) {
+        demographics['gender'] = _selectedGender;
+      }
+      if (_phoneController.text.trim().isNotEmpty) {
+        demographics['phone'] = _phoneController.text.trim();
+      }
       
-      medicalConfig['therapy_drug'] = _therapyDrugController.text.trim();
-      medicalConfig['therapy_start_date'] = _therapyStartController.text.trim();
+      final nextOfKin = <String, dynamic>{};
+      if (_kinNameController.text.trim().isNotEmpty) {
+        nextOfKin['name'] = _kinNameController.text.trim();
+      }
+      if (_kinPhoneController.text.trim().isNotEmpty) {
+        nextOfKin['phone'] = _kinPhoneController.text.trim();
+      }
+      if (_caregiverController.text.trim().isNotEmpty) {
+        nextOfKin['relation'] = _caregiverController.text.trim();
+      }
+      if (nextOfKin.isNotEmpty) {
+        demographics['next_of_kin'] = nextOfKin;
+      }
+      
+      if (_therapyStartController.text.trim().isNotEmpty) {
+        medicalConfig['therapy_start_date'] = _therapyStartController.text.trim();
+      }
 
       await PatientService.updateProfile(
         demographics: demographics,
-        medicalConfig: medicalConfig,
+        medicalConfig: medicalConfig.isNotEmpty ? medicalConfig : null,
       );
       
       if (mounted) {
@@ -737,12 +752,6 @@ class _PatientEditProfileModalState extends State<PatientEditProfileModal> {
 
                     const SizedBox(height: 24),
                     _buildSectionTitle('Therapy Configuration'),
-                    _buildTextField(
-                      controller: _therapyDrugController,
-                      label: 'Therapy Drug',
-                      icon: Icons.medication_outlined,
-                    ),
-                    const SizedBox(height: 16),
                     _buildTextField(
                       controller: _therapyStartController,
                       label: 'Start Date (DD-MM-YYYY)',

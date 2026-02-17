@@ -12,7 +12,8 @@
     "strict": false,
     "resolveJsonModule": true,
     "types": [
-      "node"
+      "node",
+      "jest"
     ],
     "baseUrl": ".",
     "paths": {
@@ -33,9 +34,9 @@
     "esm": false
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "tests/**/*.ts"
   ],
-  // "include": ["src/**/*.ts", "tests/**/*.ts"],
   "exclude": [
     "node_modules",
     "build"

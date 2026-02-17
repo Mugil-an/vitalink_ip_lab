@@ -30,9 +30,9 @@ const PatientProfileSchema = new mongoose.Schema({
     },
     next_review_date: { type: Date },
     instructions: { type: [String] },
-    taken_doses: {type : [Date]}
+    taken_doses: { type: [Date] }
   },
-  medical_history: [{ 
+  medical_history: [{
     diagnosis: { type: String },
     duration_value: { type: Number },
     duration_unit: { type: String, enum: ['Days', 'Weeks', 'Months', 'Years'] },

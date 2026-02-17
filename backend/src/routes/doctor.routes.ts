@@ -15,7 +15,7 @@ import {
     updateReport,
     getReport,
 } from '@alias/controllers/doctor.controller'
-import { createPatient, UpdateReportSchema } from '@alias/validators/doctor.validator'
+import { createPatient, UpdateReportSchema, updateProfile } from '@alias/validators/doctor.validator'
 import multer from 'multer'
 
 const upload = multer({ dest: 'uploads/profiles/' })
@@ -33,7 +33,7 @@ router.route('/patients/:op_num/reports').get(authenticate, AllowDoctor, getRepo
 router.route('/patients/:op_num/reports/:report_id').get(authenticate, AllowDoctor, getReport).put(authenticate, AllowDoctor, validate(UpdateReportSchema), updateReport)
 
 router.put('/patients/:op_num/config', authenticate, AllowDoctor, updateNextReview)
-router.route('/profile').get(authenticate, AllowDoctor, getProfile).put(authenticate, AllowDoctor, UpdateProfile)
+router.route('/profile').get(authenticate, AllowDoctor, getProfile).put(authenticate, AllowDoctor, validate(updateProfile), UpdateProfile)
 router.get('/doctors', authenticate, AllowDoctor, getDoctors)
 router.post("/profile-pic", authenticate, AllowDoctor, upload.single('file'), updateProfilePicture)
 

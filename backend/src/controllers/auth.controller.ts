@@ -1,13 +1,13 @@
 import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { asyncHandler, ApiError, ApiResponse, generateToken } from '@alias/utils'
-import {User} from '@alias/models'
+import { User } from '@alias/models'
 import { comparePasswords } from '@alias/utils'
 import { UserType } from '@alias/validators'
 import { LoginInput } from '@alias/validators/user.validator'
 
 
-export const loginController = asyncHandler(async (req: Request<{}, {} , LoginInput["body"]>, res: Response) => {
+export const loginController = asyncHandler(async (req: Request<{}, {}, LoginInput["body"]>, res: Response) => {
   const { login_id, password } = req.body;
   const user = await User.findOne({ login_id })
   if (!user) {
@@ -18,36 +18,36 @@ export const loginController = asyncHandler(async (req: Request<{}, {} , LoginIn
   }
 
   const isPasswordValid = await comparePasswords({
-      password,
-      salt: user.salt,
-      hashedPassword: user.password,
+    password,
+    salt: user.salt,
+    hashedPassword: user.password,
   })
 
-  if(!isPasswordValid){
+  if (!isPasswordValid) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials')
   }
 
-  const token = generateToken({user_id: user._id.toString(), user_type: user.user_type as UserType})
+  const token = generateToken({ user_id: user._id.toString(), user_type: user.user_type as UserType })
 
-  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "User Logined In Successfully", {token, user}))
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "User Logined In Successfully", { token, user }))
 })
 
 export const logoutController = asyncHandler((req: Request, res: Response) => {
-   res.status(StatusCodes.OK).json({
-      success: true,
-      message: 'Logout successful. Please clear the token from client-side.',
-   })
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: 'Logout successful. Please clear the token from client-side.',
+  })
 })
 
 export const getMeController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user) {
-        throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated')
-    }
+  if (!req.user) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated')
+  }
 
-    const user = await User.findById(req.user.user_id).populate('profile_id').select('-password -salt').lean()
-    if (!user) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'User not found')
-    }
+  const user = await User.findById(req.user.user_id).populate('profile_id').select('-password -salt').lean()
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found')
+  }
 
-    res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'User profile retrieved successfully', { user }))
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'User profile retrieved successfully', { user }))
 })

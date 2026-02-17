@@ -145,55 +145,49 @@ export const takeDosage = asyncHandler(async (req: Request<{}, {}, TakeDosageInp
 })
 
 export const updateProfile = asyncHandler(async (req: Request<{}, {}, UpdateProfileInput['body']>, res: Response) => {
-    const { user_id } = req.user
-    const { demographics, medical_history, medical_config } = req.body
+	const { user_id } = req.user
+	const { demographics, medical_history, medical_config } = req.body
 
-    const user = await User.findById(user_id)
-    if (!user || user.user_type !== UserType.PATIENT) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
-    }
+	const user = await User.findById(user_id)
+	if (!user || user.user_type !== UserType.PATIENT) {
+		throw new ApiError(StatusCodes.NOT_FOUND, 'Patient not found')
+	}
 
-    const updateData: any = {}
+	const updateData: any = {}
 
-    if (demographics) {
-        if (demographics.name) updateData['demographics.name'] = demographics.name
-        if (demographics.age !== undefined) updateData['demographics.age'] = demographics.age
-        if (demographics.gender) updateData['demographics.gender'] = demographics.gender
-        if (demographics.phone) updateData['demographics.phone'] = demographics.phone
-        if (demographics.next_of_kin) {
-            if (demographics.next_of_kin.name) updateData['demographics.next_of_kin.name'] = demographics.next_of_kin.name
-            if (demographics.next_of_kin.relation) updateData['demographics.next_of_kin.relation'] = demographics.next_of_kin.relation
-            if (demographics.next_of_kin.phone) updateData['demographics.next_of_kin.phone'] = demographics.next_of_kin.phone
-        }
-    }
+	if (demographics) {
+		if (demographics.name) updateData['demographics.name'] = demographics.name
+		if (demographics.age !== undefined) updateData['demographics.age'] = demographics.age
+		if (demographics.gender) updateData['demographics.gender'] = demographics.gender
+		if (demographics.phone) updateData['demographics.phone'] = demographics.phone
+		if (demographics.next_of_kin) {
+			if (demographics.next_of_kin.name) updateData['demographics.next_of_kin.name'] = demographics.next_of_kin.name
+			if (demographics.next_of_kin.relation) updateData['demographics.next_of_kin.relation'] = demographics.next_of_kin.relation
+			if (demographics.next_of_kin.phone) updateData['demographics.next_of_kin.phone'] = demographics.next_of_kin.phone
+		}
+	}
 
-    if (medical_history) {
-        updateData.medical_history = medical_history
-    }
+	if (medical_history) {
+		updateData.medical_history = medical_history
+	}
 
-    if (medical_config) {
-        if (medical_config.therapy_drug) updateData['medical_config.therapy_drug'] = medical_config.therapy_drug
-        if (medical_config.therapy_start_date) {
-            const startDate = typeof medical_config.therapy_start_date === 'string' 
-                ? new Date(medical_config.therapy_start_date) 
-                : medical_config.therapy_start_date
-            updateData['medical_config.therapy_start_date'] = startDate
-        }
-    }
+	if (medical_config) {
+		if (medical_config.therapy_start_date) updateData['medical_config.therapy_start_date'] = medical_config.therapy_start_date
+	}
 
-    const updatedProfile = await PatientProfile.findByIdAndUpdate(
-        user.profile_id,
-        { $set: updateData },
-        { new: true, runValidators: true }
-    )
+	const updatedProfile = await PatientProfile.findByIdAndUpdate(
+		user.profile_id,
+		{ $set: updateData },
+		{ new: true, runValidators: true }
+	)
 
-    if (!updatedProfile) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
-    }
+	if (!updatedProfile) {
+		throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
+	}
 
-    res.status(StatusCodes.OK).json(
-        new ApiResponse(StatusCodes.OK, 'Profile updated successfully', { profile: updatedProfile })
-    )
+	res.status(StatusCodes.OK).json(
+		new ApiResponse(StatusCodes.OK, 'Profile updated successfully', { profile: updatedProfile })
+	)
 })
 
 export const updateHealthLogs = asyncHandler(async (req: Request<{}, {}, UpdateHealthLog["body"]>, res: Response) => {
