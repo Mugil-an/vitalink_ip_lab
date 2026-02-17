@@ -427,7 +427,7 @@ class _PatientHealthReportsPageState extends State<PatientHealthReportsPage> {
 
     final dio = Dio(
       BaseOptions(
-        baseUrl: 'https://vitalink-ip-lab-1.onrender.com/api/patient',
+        baseUrl: 'http://localhost:3000/api/patient',
         contentType: Headers.jsonContentType,
         validateStatus: (status) => status != null && status < 500,
       ),

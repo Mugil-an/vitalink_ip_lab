@@ -68,4 +68,29 @@ class DoctorRepository {
   Future<void> updateProfile(Map<String, dynamic> data) async {
     await _apiClient.put(AppStrings.doctorProfilePath, data: data);
   }
+
+  Future<Map<String, dynamic>> getReport(String opNumber, String reportId) async {
+    final response = await _apiClient.get('${AppStrings.doctorPatientsPath}/$opNumber/reports/$reportId');
+    // Response is already unwrapped by ApiClient, check if it has 'report' key
+    if (response.containsKey('report')) {
+      return response['report'] as Map<String, dynamic>;
+    }
+    // Otherwise return the entire response
+    return response;
+  }
+
+  Future<void> updateReportInstructions(
+    String opNumber,
+    String reportId, {
+    required String notes,
+    required bool isCritical,
+  }) async {
+    await _apiClient.put(
+      '${AppStrings.doctorPatientsPath}/$opNumber/reports/$reportId',
+      data: {
+        'notes': notes,
+        'is_critical': isCritical,
+      },
+    );
+  }
 }

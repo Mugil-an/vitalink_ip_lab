@@ -304,7 +304,14 @@ export const updateReportsInstructions = asyncHandler(async (req: Request<Update
   if (!patientProfile) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
   }
-  if (patientProfile.assigned_doctor_id.toString() !== req.user.user_id) {
+
+  // Get doctor's profile_id from user_id
+  const doctor = await User.findById(req.user.user_id)
+  if (!doctor) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Doctor not found')
+  }
+
+  if (patientProfile.assigned_doctor_id.toString() !== doctor.profile_id.toString()) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized Doctor to View The Patient')
   }
 
@@ -337,7 +344,14 @@ export const getReport = asyncHandler(async (req: Request, res: Response) => {
   if (!patientProfile) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Patient profile not found')
   }
-  if (patientProfile.assigned_doctor_id.toString() !== req.user.user_id) {
+
+  // Get doctor's profile_id from user_id
+  const doctor = await User.findById(req.user.user_id)
+  if (!doctor) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Doctor not found')
+  }
+
+  if (patientProfile.assigned_doctor_id.toString() !== doctor.profile_id.toString()) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized Doctor to View The Patient')
   }
 
@@ -347,8 +361,8 @@ export const getReport = asyncHandler(async (req: Request, res: Response) => {
   }
   const downloadUrl = await getDownloadUrl(report.file_url)
   const reportResponse = { ...report.toObject(), file_url: downloadUrl }
-
-  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Report fetched successfully', reportResponse))
+  console.log("Report Response", reportResponse)
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Report fetched successfully', { report: reportResponse }))
 })
 
 export const updateProfilePicture = async (req: Request, res: Response) => {

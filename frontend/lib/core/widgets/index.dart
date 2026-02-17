@@ -11,6 +11,10 @@ export 'common/logout_dialog.dart';
 export 'doctor/doctor_bottom_nav.dart';
 export 'doctor/doctor_scaffold.dart';
 export 'doctor/doctor_profile_widgets.dart';
+export 'doctor/view_report_widget.dart';
+export 'doctor/update_report_instructions_widget.dart';
+export 'doctor/report_action_modal.dart';
+export 'doctor/report_cards_widget.dart';
 
 // Patient widgets
 export 'patient/patient_bottom_nav.dart';
