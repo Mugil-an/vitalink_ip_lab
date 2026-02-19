@@ -160,7 +160,24 @@ export const getReports = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const patient = await PatientProfile.findById(patientUser.profile_id).select('inr_history')
-  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'INR reports fetched successfully', { inr_history: patient?.inr_history || [] }))
+
+  // Convert S3 keys to presigned URLs for each report
+  const reportsWithUrls = await Promise.all(
+    (patient?.inr_history || []).map(async (report) => {
+      const reportObj = report.toObject()
+      if (reportObj.file_url) {
+        try {
+          reportObj.file_url = await getDownloadUrl(reportObj.file_url)
+        } catch (error) {
+          logger.error('Error generating presigned URL for report', { error, file_url: reportObj.file_url })
+          // Keep the original key if presigned URL generation fails
+        }
+      }
+      return reportObj
+    })
+  )
+
+  res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'INR reports fetched successfully', { inr_history: reportsWithUrls }))
 })
 
 export const updateReport = asyncHandler(async (req: Request<UpdateReportInput['params'], {}, UpdateReportInput['body']>, res: Response) => {
@@ -361,7 +378,6 @@ export const getReport = asyncHandler(async (req: Request, res: Response) => {
   }
   const downloadUrl = await getDownloadUrl(report.file_url)
   const reportResponse = { ...report.toObject(), file_url: downloadUrl }
-  console.log("Report Response", reportResponse)
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Report fetched successfully', { report: reportResponse }))
 })
 
@@ -383,6 +399,11 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
     throw new ApiError(StatusCodes.INSUFFICIENT_STORAGE, "Error While Uploading report to cloud")
   }
 
-  const user = await User.findByIdAndUpdate(user_id, { profile_picture: fileUrl }, { new: true })
+  const user = await User.findById(user_id)
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found')
+  }
+
+  await DoctorProfile.findByIdAndUpdate(user.profile_id, { profile_picture_url: fileUrl }, { new: true })
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Profile Picture successfully changed"))
 }

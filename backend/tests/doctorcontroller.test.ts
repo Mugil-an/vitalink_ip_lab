@@ -4,6 +4,9 @@ import mongoose from 'mongoose';
 import app from '@alias/app';
 import { User, DoctorProfile, PatientProfile } from '@alias/models';
 import { Server } from 'http';
+import { DeleteObjectCommand } from '@aws-sdk/client-s3'
+import client from '@alias/config/s3-client'
+import { config } from '@alias/config'
 
 describe('Doctor Routes', () => {
     let mongoContainer: StartedTestContainer;
@@ -465,7 +468,18 @@ describe('Doctor Routes', () => {
     });
 
     describe('GET /api/doctors/patients/:op_num/reports', () => {
-        test('should get patient INR reports', async () => {
+        test('should get patient INR reports with presigned URLs', async () => {
+            // First add a report with file_url
+            const patient = await PatientProfile.findById(patientProfile._id);
+            patient.inr_history.push({
+                test_date: new Date('2024-01-15'),
+                inr_value: 2.5,
+                is_critical: false,
+                file_url: 'uploads/test-report/12345.pdf',
+                notes: 'Test report'
+            });
+            await patient.save();
+
             const response = await api.get('/api/doctors/patients/PAT001/reports', {
                 headers: { Authorization: `Bearer ${doctorToken}` }
             });
@@ -474,6 +488,16 @@ describe('Doctor Routes', () => {
             expect(response.data.success).toBe(true);
             expect(response.data.data.inr_history).toBeDefined();
             expect(Array.isArray(response.data.data.inr_history)).toBe(true);
+
+            // Verify that file_url is converted to presigned URL
+            const reportWithFile = response.data.data.inr_history.find((r: any) => r.file_url);
+            if (reportWithFile) {
+                expect(reportWithFile.file_url).toContain('https://');
+                expect(reportWithFile.file_url).toContain('X-Amz-Algorithm');
+                expect(reportWithFile.file_url).toContain('X-Amz-Signature');
+                // Should not be the raw S3 key
+                expect(reportWithFile.file_url).not.toBe('uploads/test-report/12345.pdf');
+            }
         });
 
         test('should fail with non-existent patient', async () => {
@@ -759,6 +783,227 @@ describe('Doctor Routes', () => {
 
             expect(response.status).toBe(401);
             expect(response.data.success).toBe(false);
+        });
+    });
+
+    describe('File Upload Routes - S3/Filebase Integration', () => {
+        let uploadedReportKey: string;
+        let uploadedProfilePicKey: string;
+        let reportId: string;
+
+        const deleteS3Object = async (key: string) => {
+            if (!key) return;
+            try {
+                await client.send(new DeleteObjectCommand({
+                    Bucket: config.bucketName,
+                    Key: key
+                }));
+            } catch (error) {
+                console.error('Failed to delete S3 object:', key, error);
+            }
+        };
+
+        afterAll(async () => {
+            // Cleanup all uploaded files from S3
+            await deleteS3Object(uploadedReportKey);
+            await deleteS3Object(uploadedProfilePicKey);
+        });
+
+        describe('POST /api/doctors/profile-pic', () => {
+            test('should upload profile picture and return success', async () => {
+                // Create a simple test image buffer (1x1 PNG)
+                const imageBuffer = Buffer.from(
+                    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                    'base64'
+                );
+
+                const FormData = require('form-data');
+                const form = new FormData();
+                form.append('file', imageBuffer, {
+                    filename: 'test-profile.png',
+                    contentType: 'image/png'
+                });
+
+                const response = await api.post('/api/doctors/profile-pic', form, {
+                    headers: {
+                        Authorization: `Bearer ${doctorToken}`,
+                        ...form.getHeaders()
+                    }
+                });
+
+                expect(response.status).toBe(200);
+                expect(response.data.success).toBe(true);
+                expect(response.data.message).toBe('Profile Picture successfully changed');
+
+                // Verify the profile was updated in DB
+                const updatedDoctor = await User.findById(doctorUser._id).populate('profile_id');
+                const doctorProfile = updatedDoctor.profile_id as any;
+                if (doctorProfile?.profile_picture_url) {
+                    uploadedProfilePicKey = doctorProfile.profile_picture_url;
+                }
+            });
+
+            test('should fail with invalid file type', async () => {
+                const textBuffer = Buffer.from('This is not an image');
+                const FormData = require('form-data');
+                const form = new FormData();
+                form.append('file', textBuffer, {
+                    filename: 'test.txt',
+                    contentType: 'text/plain'
+                });
+
+                const response = await api.post('/api/doctors/profile-pic', form, {
+                    headers: {
+                        Authorization: `Bearer ${doctorToken}`,
+                        ...form.getHeaders()
+                    }
+                });
+
+                expect(response.status).toBe(400);
+                expect(response.data.success).toBe(false);
+                expect(response.data.message).toContain('Invalid file type');
+            });
+
+            test('should fail without file', async () => {
+                const response = await api.post('/api/doctors/profile-pic', {}, {
+                    headers: { Authorization: `Bearer ${doctorToken}` }
+                });
+
+                expect(response.status).toBe(400);
+                expect(response.data.success).toBe(false);
+            });
+
+            test('should fail without authentication', async () => {
+                const response = await api.post('/api/doctors/profile-pic', {});
+
+                expect(response.status).toBe(401);
+                expect(response.data.success).toBe(false);
+            });
+        });
+
+        describe('GET /api/doctors/profile (with profile picture)', () => {
+            test('should return profile with presigned URL for profile picture', async () => {
+                const response = await api.get('/api/doctors/profile', {
+                    headers: { Authorization: `Bearer ${doctorToken}` }
+                });
+
+                expect(response.status).toBe(200);
+                expect(response.data.success).toBe(true);
+                expect(response.data.data.doctor).toBeDefined();
+                expect(response.data.data.patients_count).toBeDefined();
+
+                // If profile picture exists, verify it's a presigned URL
+                const profilePictureUrl = response.data.data.doctor?.profile_id?.profile_picture_url;
+                if (profilePictureUrl) {
+                    expect(profilePictureUrl).toContain('https://');
+                    expect(profilePictureUrl).toContain('X-Amz-Algorithm');
+                    expect(profilePictureUrl).toContain('X-Amz-Signature');
+                }
+            });
+        });
+
+        describe('GET /api/doctors/patients/:op_num/reports/:report_id', () => {
+            beforeAll(async () => {
+                // Upload a test report first via patient route or directly
+                const { uploadFile } = require('@alias/utils/fileUpload');
+                const testPdfBuffer = Buffer.from('%PDF-1.4 test content');
+
+                const mockFile = {
+                    buffer: testPdfBuffer,
+                    originalname: 'test-report.pdf',
+                    mimetype: 'application/pdf'
+                } as Express.Multer.File;
+
+                uploadedReportKey = await uploadFile('uploads', mockFile);
+
+                // Add report to patient profile
+                const patient = await PatientProfile.findById(patientProfile._id);
+                patient.inr_history.push({
+                    test_date: new Date('2024-02-15'),
+                    inr_value: 2.8,
+                    is_critical: false,
+                    file_url: uploadedReportKey,
+                    notes: 'Test report'
+                });
+                await patient.save();
+
+                // Get the report ID
+                const updatedPatient = await PatientProfile.findById(patientProfile._id);
+                reportId = updatedPatient.inr_history[updatedPatient.inr_history.length - 1]._id.toString();
+            });
+
+            test('should get report with presigned download URL', async () => {
+                const response = await api.get(`/api/doctors/patients/PAT001/reports/${reportId}`, {
+                    headers: { Authorization: `Bearer ${doctorToken}` }
+                });
+
+                expect(response.status).toBe(200);
+                expect(response.data.success).toBe(true);
+                expect(response.data.message).toBe('Report fetched successfully');
+                expect(response.data.data.report).toBeDefined();
+
+                const report = response.data.data.report;
+                expect(report._id).toBe(reportId);
+                expect(report.inr_value).toBe(2.8);
+                expect(report.file_url).toBeDefined();
+
+                // Verify it's a presigned URL
+                expect(report.file_url).toContain('https://');
+                expect(report.file_url).toContain('X-Amz-Algorithm');
+                expect(report.file_url).toContain('X-Amz-Signature');
+                expect(report.file_url).toContain('X-Amz-Credential');
+
+                // The presigned URL should be downloadable
+                expect(report.file_url).not.toBe(uploadedReportKey);
+            });
+
+            test('should fail with invalid report_id', async () => {
+                const invalidId = new mongoose.Types.ObjectId().toString();
+                const response = await api.get(`/api/doctors/patients/PAT001/reports/${invalidId}`, {
+                    headers: { Authorization: `Bearer ${doctorToken}` }
+                });
+
+                expect(response.status).toBe(404);
+                expect(response.data.success).toBe(false);
+                expect(response.data.message).toBe('Report not found');
+            });
+
+            test('should fail with malformed report_id', async () => {
+                const response = await api.get('/api/doctors/patients/PAT001/reports/invalid-id', {
+                    headers: { Authorization: `Bearer ${doctorToken}` }
+                });
+
+                expect(response.status).toBe(400);
+                expect(response.data.success).toBe(false);
+                expect(response.data.message).toContain('Invalid report_id');
+            });
+
+            test('should fail when accessing another doctor\'s patient report', async () => {
+                const response = await api.get(`/api/doctors/patients/PAT001/reports/${reportId}`, {
+                    headers: { Authorization: `Bearer ${secondDoctorToken}` }
+                });
+
+                expect(response.status).toBe(401);
+                expect(response.data.success).toBe(false);
+                expect(response.data.message).toContain('Unauthorized');
+            });
+
+            test('should fail with non-existent patient', async () => {
+                const response = await api.get(`/api/doctors/patients/INVALID001/reports/${reportId}`, {
+                    headers: { Authorization: `Bearer ${doctorToken}` }
+                });
+
+                expect(response.status).toBe(404);
+                expect(response.data.success).toBe(false);
+                expect(response.data.message).toBe('Patient not found');
+            });
+
+            test('should fail without authentication', async () => {
+                const response = await api.get(`/api/doctors/patients/PAT001/reports/${reportId}`);
+
+                expect(response.status).toBe(401);
+                expect(response.data.success).toBe(false);
+            });
         });
     });
 });

@@ -123,7 +123,18 @@ describe('Patient Routes', () => {
     });
 
     describe('GET /api/patient/reports', () => {
-        test('should get patient reports including INR history and health logs', async () => {
+        test('should get patient reports with presigned URLs for file_url', async () => {
+            // First add a report with file_url
+            const patient = await PatientProfile.findById(patientProfile._id);
+            patient.inr_history.push({
+                test_date: new Date('2024-02-20'),
+                inr_value: 3.0,
+                is_critical: false,
+                file_url: 'uploads/test-patient-report/test123.pdf',
+                notes: 'Test report for presigned URL'
+            });
+            await patient.save();
+
             const response = await api.get('/api/patient/reports', {
                 headers: { Authorization: `Bearer ${patientToken}` }
             });
@@ -133,6 +144,17 @@ describe('Patient Routes', () => {
             expect(response.data.data.report).toBeDefined();
             expect(response.data.data.report.inr_history).toBeDefined();
             expect(Array.isArray(response.data.data.report.inr_history)).toBe(true);
+
+            // Verify that file_url is converted to presigned URL
+            const reportWithFile = response.data.data.report.inr_history.find((r: any) => r.file_url);
+            if (reportWithFile) {
+                expect(reportWithFile.file_url).toContain('https://');
+                expect(reportWithFile.file_url).toContain('X-Amz-Algorithm');
+                expect(reportWithFile.file_url).toContain('X-Amz-Signature');
+                // Should not be the raw S3 key
+                expect(reportWithFile.file_url).not.toBe('uploads/test-patient-report/test123.pdf');
+            }
+
             expect(response.data.data.report.health_logs).toBeDefined();
             expect(response.data.data.report.weekly_dosage).toBeDefined();
             expect(response.data.data.report.medical_config).toBeDefined();

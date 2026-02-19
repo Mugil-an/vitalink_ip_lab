@@ -5,7 +5,7 @@ import { PatientProfile, User } from '@alias/models'
 import { UserType } from '@alias/validators'
 import type { ReportInput, TakeDosageInput, UpdateHealthLog, UpdateProfileInput } from '@alias/validators/patient.validator'
 import logger from '@alias/utils/logger'
-import { uploadFile } from '@alias/utils/fileUpload'
+import { uploadFile, getDownloadUrl } from '@alias/utils/fileUpload'
 
 export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 	const { user_id } = req.user
@@ -35,7 +35,26 @@ export const getReport = asyncHandler(async (req: Request, res: Response) => {
 	}
 
 	const patient = await PatientProfile.findById(patientUser.profile_id).select('inr_history health_logs weekly_dosage medical_config')
-	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Report fetched', { report: patient }))
+
+	// Convert patient to plain object and generate presigned URLs for reports
+	const patientData = patient.toObject()
+	if (patientData.inr_history && Array.isArray(patientData.inr_history)) {
+		const reportsWithUrls = await Promise.all(
+			patientData.inr_history.map(async (report: any) => {
+				if (report.file_url) {
+					try {
+						report.file_url = await getDownloadUrl(report.file_url)
+					} catch (error) {
+						logger.error('Error generating presigned URL for report', { error })
+					}
+				}
+				return report
+			})
+		)
+		patientData.inr_history = reportsWithUrls as any
+	}
+
+	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Report fetched', { report: patientData }))
 })
 
 export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput['body']>, res: Response) => {
@@ -47,6 +66,10 @@ export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput
 	if (isNaN(parsed_inr_value)) {
 		throw new ApiError(StatusCodes.BAD_REQUEST, 'INR value should be a valid number')
 	}
+
+	// Parse the test_date if it's a string (Zod transformation doesn't mutate req.body)
+	const parsedTestDate = test_date instanceof Date ? test_date : parseDDMMYYYY(test_date)
+
 	const file = (req as any).file as Express.Multer.File | undefined
 
 	if (file) {
@@ -62,13 +85,13 @@ export const submitReport = asyncHandler(async (req: Request<{}, {}, ReportInput
 		logger.error("Error While Uploading File to filebase", { error })
 		throw new ApiError(StatusCodes.INSUFFICIENT_STORAGE, "Error While Uploading report to cloud")
 	}
-	console.log(fileUrl)
+
 	const patient = await PatientProfile.findByIdAndUpdate(
 		patientUser.profile_id,
 		{
 			$push: {
 				inr_history: {
-					test_date: test_date,
+					test_date: parsedTestDate,
 					uploaded_at: new Date(),
 					inr_value: parsed_inr_value,
 					file_url: fileUrl,
@@ -334,7 +357,12 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
 		throw new ApiError(StatusCodes.INSUFFICIENT_STORAGE, "Error While Uploading report to cloud")
 	}
 
-	const user = await User.findByIdAndUpdate(user_id, { profile_picture: fileUrl }, { new: true })
+	const user = await User.findById(user_id)
+	if (!user) {
+		throw new ApiError(StatusCodes.NOT_FOUND, 'User not found')
+	}
+
+	await PatientProfile.findByIdAndUpdate(user.profile_id, { profile_picture_url: fileUrl }, { new: true })
 	res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, "Profile Picture successfully changed"))
 }
 

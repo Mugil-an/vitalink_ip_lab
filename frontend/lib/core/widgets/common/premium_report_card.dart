@@ -29,23 +29,66 @@ class PremiumReportCard extends StatelessWidget {
 
   Future<void> _launchURL(BuildContext context, String? urlString) async {
     if (urlString == null || urlString.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No file URL available')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No file URL available')),
+        );
+      }
       return;
     }
 
-    final Uri url = Uri.parse(urlString);
     try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+      debugPrint('Attempting to open URL: $urlString');
+      
+      final uri = Uri.parse(urlString);
+      
+      // Validate URL format
+      if (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Invalid URL format: $urlString')),
+          );
+        }
+        return;
+      }
+      
+      final canLaunch = await canLaunchUrl(uri);
+      debugPrint('Can launch URL: $canLaunch');
+      
+      if (canLaunch) {
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        
+        if (!launched && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to open file. Please try again.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       } else {
-        throw 'Could not launch URL';
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No application found to open this file. Please install a PDF viewer or web browser.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening file: $e')),
-      );
+      debugPrint('Error launching URL: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening file: $e'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 

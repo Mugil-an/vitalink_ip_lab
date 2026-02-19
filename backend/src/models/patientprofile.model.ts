@@ -44,7 +44,8 @@ const PatientProfileSchema = new mongoose.Schema({
     type: String,
     enum: ['Active', 'Discharged', 'Deceased'],
     default: 'Active'
-  }
+  },
+  profile_picture_url: { type: String },
 }, { timestamps: true });
 
 export interface PatientProfileDocument extends mongoose.Document, mongoose.InferSchemaType<typeof PatientProfileSchema> { }
