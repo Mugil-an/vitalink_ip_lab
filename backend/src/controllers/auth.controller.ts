@@ -14,7 +14,7 @@ export const loginController = asyncHandler(async (req: Request<{}, {}, LoginInp
     throw new ApiError(StatusCodes.BAD_REQUEST, "User Doesn't exist")
   }
   if (!user.is_active) {
-    throw new ApiError(StatusCodes.FORBIDDEN, 'Account is inactive. Please contact administrator.')
+    throw new ApiError(StatusCodes.FORBIDDEN, 'Account is inactive. Please contact support.')
   }
 
   const isPasswordValid = await comparePasswords({

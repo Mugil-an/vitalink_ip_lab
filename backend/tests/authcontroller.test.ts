@@ -2,8 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import mongoose from 'mongoose';
 import app from '@alias/app';
-import { User } from '@alias/models';
-import AdminProfile from '@alias/models/adminprofile.schema';
+import { User, DoctorProfile } from '@alias/models';
 import { Server } from 'http';
 
 describe('Auth Routes', () => {
@@ -27,13 +26,17 @@ describe('Auth Routes', () => {
         baseURL = `http://localhost:${port}`;
         api = axios.create({ baseURL, validateStatus: () => true });
 
-        const adminProfile = await AdminProfile.create({ permission: 'FULL_ACCESS' });
+        const doctorProfile = await DoctorProfile.create({
+            name: 'Test Doctor',
+            department: 'General',
+            contact_number: '9999999999'
+        });
 
         testUser = await User.create({
             login_id: 'testuser',
             password: 'testpassword123',
-            user_type: 'ADMIN',
-            profile_id: adminProfile._id,
+            user_type: 'DOCTOR',
+            profile_id: doctorProfile._id,
             is_active: true
         });
     }, 120000);
@@ -92,7 +95,7 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(403);
             expect(response.data.success).toBe(false);
-            expect(response.data.message).toBe('Account is inactive. Please contact administrator.');
+            expect(response.data.message).toBe('Account is inactive. Please contact support.');
 
             await User.findByIdAndUpdate(testUser._id, { is_active: true });
         });
