@@ -38,8 +38,8 @@ class _PatientManagementPageState extends State<PatientManagementPage> {
           'patients',
           _page,
           search,
-          _statusFilter,
-          _doctorFilter,
+          _statusFilter ?? '',
+          _doctorFilter ?? '',
           _refreshKey,
         ],
         queryFn: () => _repo.getAllPatients(
@@ -50,11 +50,12 @@ class _PatientManagementPageState extends State<PatientManagementPage> {
         ),
       ),
       builder: (context, query) {
-        final body = query.data ?? {};
-        final dataMap = body['data'] as Map<String, dynamic>? ?? {};
+        final dataMap = query.data ?? {};
         final patientsList = dataMap['patients'] as List? ?? [];
-        final total = dataMap['total'] as int? ?? 0;
-        final totalPages = (total / 20).ceil();
+        final pagination = dataMap['pagination'] as Map<String, dynamic>? ?? {};
+        final total = pagination['total'] as int? ?? patientsList.length;
+        final pageSize = pagination['limit'] as int? ?? 20;
+        final totalPages = pagination['pages'] as int? ?? (total / pageSize).ceil();
 
         return Scaffold(
           appBar: AppBar(
@@ -154,46 +155,46 @@ class _PatientManagementPageState extends State<PatientManagementPage> {
                 child: query.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : query.isError
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Error: ${query.error}'),
-                            const SizedBox(height: 16),
-                            FilledButton(
-                              onPressed: _refresh,
-                              child: const Text('Retry'),
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Error: ${query.error}'),
+                                const SizedBox(height: 16),
+                                FilledButton(
+                                  onPressed: _refresh,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : patientsList.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.people_outline_rounded,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text('No patients found'),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 80),
-                        itemCount: patientsList.length,
-                        itemBuilder: (context, index) {
-                          final patient =
-                              patientsList[index] as Map<String, dynamic>;
-                          return _PatientListTile(
-                            patient: patient,
-                            onRefresh: _refresh,
-                          );
-                        },
-                      ),
+                          )
+                        : patientsList.isEmpty
+                            ? const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.people_outline_rounded,
+                                      size: 48,
+                                      color: Colors.grey,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text('No patients found'),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.only(bottom: 80),
+                                itemCount: patientsList.length,
+                                itemBuilder: (context, index) {
+                                  final patient = patientsList[index]
+                                      as Map<String, dynamic>;
+                                  return _PatientListTile(
+                                    patient: patient,
+                                    onRefresh: _refresh,
+                                  );
+                                },
+                              ),
               ),
 
               // Pagination
@@ -210,9 +211,8 @@ class _PatientManagementPageState extends State<PatientManagementPage> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_left_rounded),
-                        onPressed: _page > 1
-                            ? () => setState(() => _page--)
-                            : null,
+                        onPressed:
+                            _page > 1 ? () => setState(() => _page--) : null,
                       ),
                       Text('Page $_page of $totalPages'),
                       IconButton(
@@ -325,16 +325,22 @@ class _PatientListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final profile = patient['patient_profile'] as Map<String, dynamic>? ?? {};
+    final profile =
+        patient['profile_id'] as Map<String, dynamic>? ??
+        patient['patient_profile'] as Map<String, dynamic>? ??
+        {};
     final demographics = profile['demographics'] as Map<String, dynamic>? ?? {};
-    final name =
-        demographics['name'] as String? ??
+    final name = demographics['name'] as String? ??
         patient['login_id'] as String? ??
         'Unknown';
     final age = demographics['age'];
     final gender = demographics['gender'] as String? ?? '';
     final isActive = patient['is_active'] as bool? ?? true;
-    final id = patient['_id'] as String? ?? patient['id'] as String? ?? '';
+    final id =
+        patient['_id'] as String? ??
+        patient['id'] as String? ??
+        patient['user_id'] as String? ??
+        '';
     final opNum = patient['login_id'] as String? ?? '';
 
     return Card(
@@ -378,9 +384,17 @@ class _PatientListTile extends StatelessWidget {
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded),
               onSelected: (action) =>
-                  _handleAction(context, action, id, name, opNum),
-              itemBuilder: (_) => const [
-                PopupMenuItem(
+                  _handleAction(
+                    context,
+                    action,
+                    id,
+                    name,
+                    opNum,
+                    demographics,
+                    isActive,
+                  ),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
                     leading: Icon(Icons.edit_rounded, size: 20),
@@ -389,7 +403,7 @@ class _PatientListTile extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'reassign',
                   child: ListTile(
                     leading: Icon(Icons.swap_horiz_rounded, size: 20),
@@ -398,7 +412,7 @@ class _PatientListTile extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'password',
                   child: ListTile(
                     leading: Icon(Icons.lock_reset_rounded, size: 20),
@@ -408,16 +422,18 @@ class _PatientListTile extends StatelessWidget {
                   ),
                 ),
                 PopupMenuItem(
-                  value: 'deactivate',
+                  value: 'status',
                   child: ListTile(
                     leading: Icon(
-                      Icons.block_rounded,
+                      isActive
+                          ? Icons.block_rounded
+                          : Icons.check_circle_outline_rounded,
                       size: 20,
-                      color: Colors.red,
+                      color: isActive ? Colors.red : Colors.green,
                     ),
                     title: Text(
-                      'Deactivate',
-                      style: TextStyle(color: Colors.red),
+                      isActive ? 'Deactivate' : 'Activate',
+                      style: TextStyle(color: isActive ? Colors.red : Colors.green),
                     ),
                     contentPadding: EdgeInsets.zero,
                     visualDensity: VisualDensity.compact,
@@ -437,8 +453,18 @@ class _PatientListTile extends StatelessWidget {
     String id,
     String name,
     String opNum,
+    Map<String, dynamic> demographics,
+    bool isActive,
   ) {
     switch (action) {
+      case 'edit':
+        showEditPatientDialog(
+          context,
+          patientId: id,
+          currentData: demographics,
+          onSuccess: onRefresh,
+        );
+        break;
       case 'password':
         showResetPasswordDialog(
           context,
@@ -455,14 +481,18 @@ class _PatientListTile extends StatelessWidget {
           onSuccess: onRefresh,
         );
         break;
-      case 'deactivate':
-        showDeactivateConfirmDialog(
+      case 'status':
+        showStatusToggleDialog(
           context,
-          userId: id,
+          isActive: isActive,
           userName: name,
           userType: 'Patient',
-          onConfirm: () =>
-              AppDependencies.adminRepository.deactivatePatient(id),
+          onConfirm: () async {
+            await AppDependencies.adminRepository.updatePatient(id, {
+              'is_active': !isActive,
+              'account_status': !isActive ? 'Active' : 'Discharged',
+            });
+          },
           onSuccess: onRefresh,
         );
         break;

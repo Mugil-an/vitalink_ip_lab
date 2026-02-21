@@ -89,27 +89,24 @@ class _AnalyticsDashboardPageState extends State<AnalyticsDashboardPage> {
                                   runSpacing: 16,
                                   children: [
                                     SizedBox(
-                                      width: isDesktop
-                                          ? (width - 16) / 2
-                                          : width,
+                                      width:
+                                          isDesktop ? (width - 16) / 2 : width,
                                       height: 350,
                                       child: _TrendsChart(
                                         trends: trendsQuery.data,
                                       ),
                                     ),
                                     SizedBox(
-                                      width: isDesktop
-                                          ? (width - 16) / 2
-                                          : width,
+                                      width:
+                                          isDesktop ? (width - 16) / 2 : width,
                                       height: 350,
                                       child: _ComplianceChart(
                                         compliance: complianceQuery.data,
                                       ),
                                     ),
                                     SizedBox(
-                                      width: isDesktop
-                                          ? (width - 16) / 2
-                                          : width,
+                                      width:
+                                          isDesktop ? (width - 16) / 2 : width,
                                       height: 350,
                                       child: _WorkloadChart(
                                         workload: workloadQuery.data ?? [],
@@ -286,9 +283,8 @@ class _TrendsChart extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 30,
-                interval: data.length > 7
-                    ? (data.length / 7).ceilToDouble()
-                    : 1,
+                interval:
+                    data.length > 7 ? (data.length / 7).ceilToDouble() : 1,
                 getTitlesWidget: (v, _) {
                   final i = v.toInt();
                   if (i >= 0 && i < data.length) {
@@ -447,7 +443,7 @@ class _WorkloadChart extends StatelessWidget {
                 getTitlesWidget: (v, _) {
                   final i = v.toInt();
                   if (i >= 0 && i < top.length) {
-                    final n = top[i].doctorName;
+                    final n = top[i].doctorName ?? '';
                     return Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: RotatedBox(

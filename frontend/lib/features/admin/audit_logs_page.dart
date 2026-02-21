@@ -30,10 +30,10 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           'admin',
           'audit-logs',
           _page,
-          _actionFilter,
-          _successFilter,
-          _startDate,
-          _endDate,
+          _actionFilter ?? '',
+          _successFilter ?? '',
+          _startDate ?? '',
+          _endDate ?? '',
           _refreshKey,
         ],
         queryFn: () => _repo.getAuditLogs(
@@ -45,11 +45,12 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
         ),
       ),
       builder: (context, query) {
-        final body = query.data ?? {};
-        final dataMap = body['data'] as Map<String, dynamic>? ?? {};
+        final dataMap = query.data ?? {};
         final logsList = dataMap['logs'] as List? ?? [];
-        final total = dataMap['total'] as int? ?? 0;
-        final totalPages = (total / 50).ceil();
+        final pagination = dataMap['pagination'] as Map<String, dynamic>? ?? {};
+        final total = pagination['total'] as int? ?? logsList.length;
+        final pageSize = pagination['limit'] as int? ?? 50;
+        final totalPages = pagination['pages'] as int? ?? (total / pageSize).ceil();
 
         final logs = logsList
             .map((e) => AuditLogModel.fromJson(e as Map<String, dynamic>))
@@ -155,40 +156,40 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 child: query.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : query.isError
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Error: ${query.error}'),
-                            const SizedBox(height: 16),
-                            FilledButton(
-                              onPressed: _refresh,
-                              child: const Text('Retry'),
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Error: ${query.error}'),
+                                const SizedBox(height: 16),
+                                FilledButton(
+                                  onPressed: _refresh,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : logs.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.history_rounded,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text('No audit logs found'),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: logs.length,
-                        itemBuilder: (context, index) =>
-                            _AuditLogTile(log: logs[index]),
-                      ),
+                          )
+                        : logs.isEmpty
+                            ? const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.history_rounded,
+                                      size: 48,
+                                      color: Colors.grey,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text('No audit logs found'),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: logs.length,
+                                itemBuilder: (context, index) =>
+                                    _AuditLogTile(log: logs[index]),
+                              ),
               ),
 
               // Pagination
@@ -205,9 +206,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_left_rounded),
-                        onPressed: _page > 1
-                            ? () => setState(() => _page--)
-                            : null,
+                        onPressed:
+                            _page > 1 ? () => setState(() => _page--) : null,
                       ),
                       Text('Page $_page of ${totalPages > 0 ? totalPages : 1}'),
                       IconButton(
@@ -413,7 +413,8 @@ class _AuditLogTile extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime dt) {
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '--';
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }

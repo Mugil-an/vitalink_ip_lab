@@ -65,11 +65,10 @@ class _SystemConfigPageState extends State<SystemConfigPage> {
       _inrLowCtrl.text =
           (thresholds['critical_low'] ?? thresholds['inr_critical_low'] ?? 1.5)
               .toString();
-      _inrHighCtrl.text =
-          (thresholds['critical_high'] ??
-                  thresholds['inr_critical_high'] ??
-                  4.5)
-              .toString();
+      _inrHighCtrl.text = (thresholds['critical_high'] ??
+              thresholds['inr_critical_high'] ??
+              4.5)
+          .toString();
 
       final session = config['session_settings'] ?? {};
       _sessionTimeoutCtrl.text = (session['timeout_minutes'] ?? 30).toString();
@@ -418,6 +417,16 @@ class _SystemConfigPageState extends State<SystemConfigPage> {
     );
   }
 
+  String _formatUptime(double seconds) {
+    final hours = (seconds / 3600).floor();
+    final minutes = ((seconds % 3600) / 60).floor();
+    if (hours > 24) {
+      final days = (hours / 24).floor();
+      return '${days}d ${hours % 24}h';
+    }
+    return '${hours}h ${minutes}m';
+  }
+
   Widget _buildHealthSection(ThemeData theme) {
     final h = _health;
     final isHealthy = h?.status == 'healthy';
@@ -447,8 +456,8 @@ class _SystemConfigPageState extends State<SystemConfigPage> {
                   backgroundColor: h == null
                       ? Colors.grey.withValues(alpha: 0.1)
                       : (isHealthy
-                            ? Colors.green.withValues(alpha: 0.1)
-                            : Colors.red.withValues(alpha: 0.1)),
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1)),
                 ),
               ],
             ),
@@ -466,13 +475,13 @@ class _SystemConfigPageState extends State<SystemConfigPage> {
                   ),
                   _HealthMetric(
                     'Uptime',
-                    h.uptime,
+                    _formatUptime(h.uptime),
                     Icons.access_time,
                     Colors.blue,
                   ),
                   _HealthMetric(
                     'Memory',
-                    '${h.memory.heapUsedMB.toStringAsFixed(0)}MB',
+                    h.memory.heapUsed,
                     Icons.memory,
                     Colors.orange,
                   ),

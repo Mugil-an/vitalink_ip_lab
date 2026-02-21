@@ -9,6 +9,10 @@ class AdminStatsModel {
     this.auditLogs = 0,
   });
 
+  // Convenience aliases used by dashboard/analytics pages
+  DoctorStats get doctorStats => doctors;
+  PatientStats get patientStats => patients;
+
   factory AdminStatsModel.fromJson(Map<String, dynamic> json) {
     return AdminStatsModel(
       doctors: DoctorStats.fromJson(
@@ -50,12 +54,14 @@ class PatientStats {
   final int active;
   final int inactive;
   final int recent;
+  final int criticalInr;
 
   PatientStats({
     this.total = 0,
     this.active = 0,
     this.inactive = 0,
     this.recent = 0,
+    this.criticalInr = 0,
   });
 
   factory PatientStats.fromJson(Map<String, dynamic> json) {
@@ -64,6 +70,7 @@ class PatientStats {
       active: json['active'] as int? ?? 0,
       inactive: json['inactive'] as int? ?? 0,
       recent: json['recent'] as int? ?? 0,
+      criticalInr: json['critical_inr'] as int? ?? 0,
     );
   }
 }
@@ -82,6 +89,18 @@ class TrendDataPoint {
   }
 }
 
+class CombinedTrendDataPoint {
+  final String date;
+  final int doctors;
+  final int patients;
+
+  CombinedTrendDataPoint({
+    required this.date,
+    required this.doctors,
+    required this.patients,
+  });
+}
+
 class RegistrationTrends {
   final String period;
   final List<TrendDataPoint> doctors;
@@ -92,6 +111,27 @@ class RegistrationTrends {
     required this.doctors,
     required this.patients,
   });
+
+  /// Combined view of doctor and patient trends by date.
+  List<CombinedTrendDataPoint> get dataPoints {
+    final dateMap = <String, Map<String, int>>{};
+    for (final d in doctors) {
+      dateMap.putIfAbsent(d.date, () => {'doctors': 0, 'patients': 0});
+      dateMap[d.date]!['doctors'] = d.count;
+    }
+    for (final p in patients) {
+      dateMap.putIfAbsent(p.date, () => {'doctors': 0, 'patients': 0});
+      dateMap[p.date]!['patients'] = p.count;
+    }
+    final sorted = dateMap.keys.toList()..sort();
+    return sorted
+        .map((date) => CombinedTrendDataPoint(
+              date: date,
+              doctors: dateMap[date]!['doctors']!,
+              patients: dateMap[date]!['patients']!,
+            ))
+        .toList();
+  }
 
   factory RegistrationTrends.fromJson(Map<String, dynamic> json) {
     return RegistrationTrends(
@@ -120,6 +160,18 @@ class InrComplianceStats {
     this.aboveRange = 0,
     this.noData = 0,
   });
+
+  /// Alias for totalPatients used by analytics charts.
+  int get total => totalPatients;
+
+  double get inRangePercentage =>
+      totalPatients > 0 ? (inRange / totalPatients) * 100 : 0;
+
+  double get outOfRangePercentage =>
+      totalPatients > 0 ? ((belowRange + aboveRange) / totalPatients) * 100 : 0;
+
+  double get criticalPercentage =>
+      totalPatients > 0 ? (noData / totalPatients) * 100 : 0;
 
   factory InrComplianceStats.fromJson(Map<String, dynamic> json) {
     return InrComplianceStats(
@@ -191,6 +243,9 @@ class DatabaseHealth {
   final String? name;
 
   DatabaseHealth({required this.state, this.host, this.name});
+
+  /// Alias used by system_config_page.
+  String get status => state;
 
   factory DatabaseHealth.fromJson(Map<String, dynamic> json) {
     return DatabaseHealth(

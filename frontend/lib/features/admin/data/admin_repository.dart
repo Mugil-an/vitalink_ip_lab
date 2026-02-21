@@ -1,6 +1,5 @@
 import 'package:frontend/core/constants/strings.dart';
 import 'package:frontend/core/network/api_client.dart';
-import 'package:frontend/features/admin/models/audit_log_model.dart';
 import 'package:frontend/features/admin/models/admin_stats_model.dart';
 import 'package:frontend/features/admin/models/system_config_model.dart';
 
@@ -8,6 +7,14 @@ class AdminRepository {
   AdminRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
   final ApiClient _apiClient;
+
+  Map<String, dynamic> _extractData(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    return response;
+  }
 
   // ─── Doctor CRUD ───
 
@@ -27,10 +34,11 @@ class AdminRepository {
     if (isActive != null) params['is_active'] = isActive;
     if (search != null && search.isNotEmpty) params['search'] = search;
 
-    return await _apiClient.getRaw(
+    final response = await _apiClient.getRaw(
       AppStrings.adminDoctorsPath,
       queryParameters: params,
     );
+    return _extractData(response);
   }
 
   Future<Map<String, dynamic>> updateDoctor(
@@ -66,10 +74,11 @@ class AdminRepository {
     if (accountStatus != null) params['account_status'] = accountStatus;
     if (search != null && search.isNotEmpty) params['search'] = search;
 
-    return await _apiClient.getRaw(
+    final response = await _apiClient.getRaw(
       AppStrings.adminPatientsPath,
       queryParameters: params,
     );
+    return _extractData(response);
   }
 
   Future<Map<String, dynamic>> updatePatient(
@@ -116,10 +125,11 @@ class AdminRepository {
     if (endDate != null) params['end_date'] = endDate;
     if (success != null) params['success'] = success;
 
-    return await _apiClient.getRaw(
+    final response = await _apiClient.getRaw(
       AppStrings.adminAuditLogsPath,
       queryParameters: params,
     );
+    return _extractData(response);
   }
 
   // ─── System Config ───

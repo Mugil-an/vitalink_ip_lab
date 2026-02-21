@@ -7,6 +7,16 @@ import 'package:frontend/features/admin/data/admin_repository.dart';
 /// Riverpod providers (matching the target project conventions).
 
 final AdminRepository _repo = AppDependencies.adminRepository;
+final RegExp _strongPasswordRegex =
+    RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$');
+
+String? _validateStrongPassword(String? value) {
+  if (value == null || value.isEmpty) return 'Required';
+  if (!_strongPasswordRegex.hasMatch(value)) {
+    return 'Use 8+ chars with upper/lower/number/special';
+  }
+  return null;
+}
 
 // =============================================================================
 // DOCTOR DIALOGS
@@ -55,8 +65,7 @@ Future<bool> showAddDoctorDialog(
                     ),
                     obscureText: true,
                     enabled: !loading,
-                    validator: (v) =>
-                        (v == null || v.length < 6) ? 'Min 6 chars' : null,
+                    validator: _validateStrongPassword,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -298,8 +307,7 @@ Future<bool> showAddPatientDialog(
           _repo
               .getAllDoctors(limit: 100, isActive: 'true')
               .then((response) {
-                final data = response['data'] as Map<String, dynamic>? ?? {};
-                final items = data['doctors'] as List? ?? [];
+                final items = response['doctors'] as List? ?? [];
                 if (ctx.mounted) {
                   setState(() {
                     doctorList = items.cast<Map<String, dynamic>>();
@@ -345,8 +353,7 @@ Future<bool> showAddPatientDialog(
                     ),
                     obscureText: true,
                     enabled: !loading,
-                    validator: (v) =>
-                        (v == null || v.length < 6) ? 'Min 6 chars' : null,
+                    validator: _validateStrongPassword,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -472,12 +479,15 @@ Future<bool> showAddPatientDialog(
                           'login_id': loginId.text.trim(),
                           'password': password.text,
                           'assigned_doctor_id': selectedDoctorId,
-                          'name': name.text.trim(),
-                          if (age.text.isNotEmpty)
-                            'age': int.tryParse(age.text),
-                          if (selectedGender != null) 'gender': selectedGender,
-                          if (phone.text.trim().isNotEmpty)
-                            'phone': phone.text.trim(),
+                          'demographics': {
+                            'name': name.text.trim(),
+                            if (age.text.isNotEmpty)
+                              'age': int.tryParse(age.text),
+                            if (selectedGender != null)
+                              'gender': selectedGender,
+                            if (phone.text.trim().isNotEmpty)
+                              'phone': phone.text.trim(),
+                          },
                         });
                         if (ctx.mounted) Navigator.pop(ctx, true);
                       } catch (e) {
@@ -510,6 +520,156 @@ Future<bool> showAddPatientDialog(
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Patient onboarded successfully'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    onSuccess?.call();
+  }
+  return result ?? false;
+}
+
+Future<bool> showEditPatientDialog(
+  BuildContext context, {
+  required String patientId,
+  required Map<String, dynamic> currentData,
+  VoidCallback? onSuccess,
+}) async {
+  final formKey = GlobalKey<FormState>();
+  final name = TextEditingController(text: currentData['name'] as String? ?? '');
+  final age = TextEditingController(
+    text: currentData['age'] != null ? '${currentData['age']}' : '',
+  );
+  final phone = TextEditingController(
+    text: currentData['phone'] as String? ?? '',
+  );
+  String? selectedGender = currentData['gender'] as String?;
+
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) {
+        bool loading = false;
+        return AlertDialog(
+          title: const Text('Edit Patient Details'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      prefixIcon: Icon(Icons.badge_rounded),
+                    ),
+                    enabled: !loading,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: age,
+                          decoration: const InputDecoration(labelText: 'Age'),
+                          keyboardType: TextInputType.number,
+                          enabled: !loading,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: ['Male', 'Female', 'Other'].contains(
+                            selectedGender,
+                          )
+                              ? selectedGender
+                              : null,
+                          decoration: const InputDecoration(labelText: 'Gender'),
+                          items: const [
+                            DropdownMenuItem(value: 'Male', child: Text('Male')),
+                            DropdownMenuItem(
+                              value: 'Female',
+                              child: Text('Female'),
+                            ),
+                            DropdownMenuItem(value: 'Other', child: Text('Other')),
+                          ],
+                          onChanged: loading
+                              ? null
+                              : (v) => setState(() => selectedGender = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone_rounded),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    enabled: !loading,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => loading = true);
+                      try {
+                        await _repo.updatePatient(patientId, {
+                          'demographics': {
+                            'name': name.text.trim(),
+                            if (age.text.trim().isNotEmpty)
+                              'age': int.tryParse(age.text.trim()),
+                            if (selectedGender != null)
+                              'gender': selectedGender,
+                            if (phone.text.trim().isNotEmpty)
+                              'phone': phone.text.trim(),
+                          },
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx, true);
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          setState(() => loading = false);
+                        }
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Update'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+
+  if (result == true && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Patient updated successfully'),
         backgroundColor: Colors.green,
       ),
     );
@@ -597,6 +757,83 @@ Future<bool> showDeactivateConfirmDialog(
   return result ?? false;
 }
 
+Future<bool> showStatusToggleDialog(
+  BuildContext context, {
+  required bool isActive,
+  required String userName,
+  required String userType,
+  required Future<void> Function() onConfirm,
+  VoidCallback? onSuccess,
+}) async {
+  final action = isActive ? 'Deactivate' : 'Activate';
+
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) {
+        bool loading = false;
+        return AlertDialog(
+          title: Text('$action $userType'),
+          content: Text('Are you sure you want to $action $userName?'),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: isActive
+                  ? FilledButton.styleFrom(
+                      backgroundColor: Theme.of(ctx).colorScheme.error,
+                    )
+                  : null,
+              onPressed: loading
+                  ? null
+                  : () async {
+                      setState(() => loading = true);
+                      try {
+                        await onConfirm();
+                        if (ctx.mounted) Navigator.pop(ctx, true);
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          setState(() => loading = false);
+                        }
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(action),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+
+  if (result == true && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('User status updated'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    onSuccess?.call();
+  }
+  return result ?? false;
+}
+
 Future<bool> showResetPasswordDialog(
   BuildContext context, {
   required String userId,
@@ -623,8 +860,7 @@ Future<bool> showResetPasswordDialog(
               ),
               obscureText: true,
               enabled: !loading,
-              validator: (v) =>
-                  (v == null || v.length < 6) ? 'Min 6 chars' : null,
+              validator: _validateStrongPassword,
             ),
           ),
           actions: [
@@ -707,8 +943,7 @@ Future<bool> showReassignPatientDialog(
           _repo
               .getAllDoctors(limit: 100, isActive: 'true')
               .then((response) {
-                final data = response['data'] as Map<String, dynamic>? ?? {};
-                final items = data['doctors'] as List? ?? [];
+                final items = response['doctors'] as List? ?? [];
                 if (ctx.mounted) {
                   setState(() {
                     doctorList = items.cast<Map<String, dynamic>>();

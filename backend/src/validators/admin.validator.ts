@@ -66,28 +66,31 @@ export const createPatientSchema = z.object({
     assigned_doctor_id: z.string().min(1, 'Assigned doctor ID is required'),
     demographics: z.object({
       name: z.string().min(1, 'Patient name is required'),
-      age: z.number().int().positive(),
-      gender: z.string().min(1),
+      age: z.number().int().positive().optional(),
+      gender: z.enum(['Male', 'Female', 'Other']).optional(),
       phone: z.string().optional(),
       next_of_kin: z
         .object({
-          name: z.string(),
-          relationship: z.string(),
-          phone: z.string(),
+          name: z.string().optional(),
+          relation: z.string().optional(),
+          relationship: z.string().optional(),
+          phone: z.string().optional(),
         })
         .optional(),
     }),
-    medical_config: z.object({
-      diagnosis: z.string().optional(),
-      therapy_drug: z.string().min(1, 'Therapy drug is required'),
-      therapy_start_date: z.string().optional(),
-      target_inr: z
-        .object({
-          min: z.number().positive(),
-          max: z.number().positive(),
-        })
-        .optional(),
-    }),
+    medical_config: z
+      .object({
+        diagnosis: z.string().optional(),
+        therapy_drug: z.string().optional(),
+        therapy_start_date: z.string().optional(),
+        target_inr: z
+          .object({
+            min: z.number().positive(),
+            max: z.number().positive(),
+          })
+          .optional(),
+      })
+      .optional(),
   }),
 })
 
@@ -104,9 +107,10 @@ export const updatePatientSchema = z.object({
         phone: z.string().optional(),
         next_of_kin: z
           .object({
-            name: z.string(),
-            relationship: z.string(),
-            phone: z.string(),
+            name: z.string().optional(),
+            relation: z.string().optional(),
+            relationship: z.string().optional(),
+            phone: z.string().optional(),
           })
           .optional(),
       })

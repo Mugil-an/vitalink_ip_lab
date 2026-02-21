@@ -38,8 +38,8 @@ class _DoctorManagementPageState extends State<DoctorManagementPage> {
           'doctors',
           _page,
           search,
-          _statusFilter,
-          _departmentFilter,
+          _statusFilter ?? '',
+          _departmentFilter ?? '',
           _refreshKey,
         ],
         queryFn: () => _repo.getAllDoctors(
@@ -50,11 +50,12 @@ class _DoctorManagementPageState extends State<DoctorManagementPage> {
         ),
       ),
       builder: (context, query) {
-        final body = query.data ?? {};
-        final dataMap = body['data'] as Map<String, dynamic>? ?? {};
+        final dataMap = query.data ?? {};
         final doctorsList = dataMap['doctors'] as List? ?? [];
-        final total = dataMap['total'] as int? ?? 0;
-        final totalPages = (total / 20).ceil();
+        final pagination = dataMap['pagination'] as Map<String, dynamic>? ?? {};
+        final total = pagination['total'] as int? ?? doctorsList.length;
+        final pageSize = pagination['limit'] as int? ?? 20;
+        final totalPages = pagination['pages'] as int? ?? (total / pageSize).ceil();
 
         return Scaffold(
           appBar: AppBar(
@@ -187,46 +188,46 @@ class _DoctorManagementPageState extends State<DoctorManagementPage> {
                 child: query.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : query.isError
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Error: ${query.error}'),
-                            const SizedBox(height: 16),
-                            FilledButton(
-                              onPressed: _refresh,
-                              child: const Text('Retry'),
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Error: ${query.error}'),
+                                const SizedBox(height: 16),
+                                FilledButton(
+                                  onPressed: _refresh,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : doctorsList.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.medical_services_outlined,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text('No doctors found'),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 80),
-                        itemCount: doctorsList.length,
-                        itemBuilder: (context, index) {
-                          final doc =
-                              doctorsList[index] as Map<String, dynamic>;
-                          return _DoctorListTile(
-                            doctor: doc,
-                            onRefresh: _refresh,
-                          );
-                        },
-                      ),
+                          )
+                        : doctorsList.isEmpty
+                            ? const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.medical_services_outlined,
+                                      size: 48,
+                                      color: Colors.grey,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text('No doctors found'),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.only(bottom: 80),
+                                itemCount: doctorsList.length,
+                                itemBuilder: (context, index) {
+                                  final doc = doctorsList[index]
+                                      as Map<String, dynamic>;
+                                  return _DoctorListTile(
+                                    doctor: doc,
+                                    onRefresh: _refresh,
+                                  );
+                                },
+                              ),
               ),
 
               // Pagination
@@ -243,9 +244,8 @@ class _DoctorManagementPageState extends State<DoctorManagementPage> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_left_rounded),
-                        onPressed: _page > 1
-                            ? () => setState(() => _page--)
-                            : null,
+                        onPressed:
+                            _page > 1 ? () => setState(() => _page--) : null,
                       ),
                       Text('Page $_page of $totalPages'),
                       IconButton(
@@ -274,14 +274,20 @@ class _DoctorListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final profile = doctor['doctor_profile'] as Map<String, dynamic>? ?? {};
-    final name =
-        profile['name'] as String? ??
+    final profile =
+        doctor['profile_id'] as Map<String, dynamic>? ??
+        doctor['doctor_profile'] as Map<String, dynamic>? ??
+        {};
+    final name = profile['name'] as String? ??
         doctor['login_id'] as String? ??
         'Unknown';
     final department = profile['department'] as String? ?? 'General';
     final isActive = doctor['is_active'] as bool? ?? true;
-    final id = doctor['_id'] as String? ?? doctor['id'] as String? ?? '';
+    final id =
+        doctor['_id'] as String? ??
+        doctor['id'] as String? ??
+        doctor['user_id'] as String? ??
+        '';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -324,9 +330,9 @@ class _DoctorListTile extends StatelessWidget {
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded),
               onSelected: (action) =>
-                  _handleAction(context, action, id, name, profile),
-              itemBuilder: (_) => const [
-                PopupMenuItem(
+                  _handleAction(context, action, id, name, profile, isActive),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
                     leading: Icon(Icons.edit_rounded, size: 20),
@@ -335,7 +341,7 @@ class _DoctorListTile extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'password',
                   child: ListTile(
                     leading: Icon(Icons.lock_reset_rounded, size: 20),
@@ -345,16 +351,18 @@ class _DoctorListTile extends StatelessWidget {
                   ),
                 ),
                 PopupMenuItem(
-                  value: 'deactivate',
+                  value: 'status',
                   child: ListTile(
                     leading: Icon(
-                      Icons.block_rounded,
+                      isActive
+                          ? Icons.block_rounded
+                          : Icons.check_circle_outline_rounded,
                       size: 20,
-                      color: Colors.red,
+                      color: isActive ? Colors.red : Colors.green,
                     ),
                     title: Text(
-                      'Deactivate',
-                      style: TextStyle(color: Colors.red),
+                      isActive ? 'Deactivate' : 'Activate',
+                      style: TextStyle(color: isActive ? Colors.red : Colors.green),
                     ),
                     contentPadding: EdgeInsets.zero,
                     visualDensity: VisualDensity.compact,
@@ -374,6 +382,7 @@ class _DoctorListTile extends StatelessWidget {
     String id,
     String name,
     Map<String, dynamic> profile,
+    bool isActive,
   ) {
     switch (action) {
       case 'edit':
@@ -392,13 +401,17 @@ class _DoctorListTile extends StatelessWidget {
           onSuccess: onRefresh,
         );
         break;
-      case 'deactivate':
-        showDeactivateConfirmDialog(
+      case 'status':
+        showStatusToggleDialog(
           context,
-          userId: id,
+          isActive: isActive,
           userName: name,
           userType: 'Doctor',
-          onConfirm: () => AppDependencies.adminRepository.deactivateDoctor(id),
+          onConfirm: () async {
+            await AppDependencies.adminRepository.updateDoctor(id, {
+              'is_active': !isActive,
+            });
+          },
           onSuccess: onRefresh,
         );
         break;

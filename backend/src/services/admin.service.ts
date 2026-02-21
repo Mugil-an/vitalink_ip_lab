@@ -1,8 +1,18 @@
 import { StatusCodes } from 'http-status-codes'
 import { User, DoctorProfile, PatientProfile, AuditLog } from '@alias/models'
 import { ApiError } from '@alias/utils'
-import { hashPassword, generateSalt } from '@alias/utils'
 import { UserType } from '@alias/validators'
+
+async function findDoctorByIdentifier(identifier: string) {
+  let doctor = await User.findById(identifier)
+  if (!doctor || doctor.user_type !== UserType.DOCTOR) {
+    doctor = await User.findOne({ login_id: identifier, user_type: UserType.DOCTOR })
+  }
+  if (!doctor || doctor.user_type !== UserType.DOCTOR) {
+    return null
+  }
+  return doctor
+}
 
 // ─── Doctor Management ───
 
@@ -53,32 +63,32 @@ export async function getAllDoctors(
     query.is_active = is_active
   }
 
-  let users = await User.find(query)
+  const users = await User.find(query)
     .populate('profile_id')
-    .skip((page - 1) * limit)
-    .limit(limit)
     .sort({ createdAt: -1 })
 
-  // Apply profile-level filters after population
-  if (department || search) {
-    users = users.filter((user: any) => {
-      const profile = user.profile_id as any
-      if (!profile) return false
-      if (department && profile.department !== department) return false
-      if (search) {
-        const s = search.toLowerCase()
-        const nameMatch = profile.name?.toLowerCase().includes(s)
-        const loginMatch = user.login_id?.toLowerCase().includes(s)
-        if (!nameMatch && !loginMatch) return false
-      }
-      return true
-    })
-  }
+  const filteredUsers = users.filter((user: any) => {
+    const profile = user.profile_id as any
+    if (!profile) return false
+    if (department) {
+      const departmentMatch = profile.department?.toLowerCase().includes(department.toLowerCase())
+      if (!departmentMatch) return false
+    }
+    if (search) {
+      const s = search.toLowerCase()
+      const nameMatch = profile.name?.toLowerCase().includes(s)
+      const loginMatch = user.login_id?.toLowerCase().includes(s)
+      if (!nameMatch && !loginMatch) return false
+    }
+    return true
+  })
 
-  const total = await User.countDocuments(query)
+  const total = filteredUsers.length
+  const skip = (page - 1) * limit
+  const paginatedUsers = filteredUsers.slice(skip, skip + limit)
 
   return {
-    doctors: users,
+    doctors: paginatedUsers,
     pagination: {
       total,
       page,
@@ -159,17 +169,17 @@ export async function deactivateDoctor(userId: string) {
 export async function onboardPatient(data: {
   login_id: string
   password: string
-  assigned_doctor_id: string
+  assigned_doctor_id: string // supports doctor user _id or doctor login_id
   demographics: {
     name: string
-    age: number
-    gender: 'Male' | 'Female' | 'Other'
+    age?: number
+    gender?: 'Male' | 'Female' | 'Other'
     phone?: string
-    next_of_kin?: { name: string; relation: string; phone: string }
+    next_of_kin?: { name?: string; relation?: string; relationship?: string; phone?: string }
   }
-  medical_config: {
+  medical_config?: {
     diagnosis?: string
-    therapy_drug: string
+    therapy_drug?: string
     therapy_start_date?: string
     target_inr?: { min: number; max: number }
   }
@@ -180,7 +190,7 @@ export async function onboardPatient(data: {
   }
 
   // Validate assigned doctor
-  const doctorUser = await User.findById(data.assigned_doctor_id)
+  const doctorUser = await findDoctorByIdentifier(data.assigned_doctor_id)
   if (!doctorUser || doctorUser.user_type !== UserType.DOCTOR) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid or inactive doctor ID')
   }
@@ -188,15 +198,31 @@ export async function onboardPatient(data: {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Assigned doctor is inactive')
   }
 
+  const nextOfKin = data.demographics.next_of_kin
+    ? {
+        name: data.demographics.next_of_kin.name,
+        relation: data.demographics.next_of_kin.relation ?? data.demographics.next_of_kin.relationship,
+        phone: data.demographics.next_of_kin.phone,
+      }
+    : undefined
+
   const patientProfile = await PatientProfile.create({
-    assigned_doctor_id: data.assigned_doctor_id,
-    demographics: data.demographics,
-    medical_config: {
-      ...data.medical_config,
-      therapy_start_date: data.medical_config.therapy_start_date
-        ? new Date(data.medical_config.therapy_start_date)
-        : undefined,
+    assigned_doctor_id: doctorUser._id,
+    demographics: {
+      name: data.demographics.name,
+      age: data.demographics.age,
+      gender: data.demographics.gender,
+      phone: data.demographics.phone,
+      next_of_kin: nextOfKin,
     },
+    medical_config: data.medical_config
+      ? {
+          ...data.medical_config,
+          therapy_start_date: data.medical_config.therapy_start_date
+            ? new Date(data.medical_config.therapy_start_date)
+            : undefined,
+        }
+      : undefined,
   })
 
   const user = await User.create({
@@ -221,33 +247,49 @@ export async function getAllPatients(
 
   const query: any = { user_type: UserType.PATIENT }
 
-  let users = await User.find(query)
+  const users = await User.find(query)
     .populate('profile_id')
-    .skip((page - 1) * limit)
-    .limit(limit)
     .sort({ createdAt: -1 })
 
-  // Apply profile-level filters after population
-  if (filters.assigned_doctor_id || filters.account_status || filters.search) {
-    users = users.filter((user: any) => {
-      const profile = user.profile_id as any
-      if (!profile) return false
-      if (filters.assigned_doctor_id && String(profile.assigned_doctor_id) !== filters.assigned_doctor_id) return false
-      if (filters.account_status && profile.account_status !== filters.account_status) return false
-      if (filters.search) {
-        const s = filters.search.toLowerCase()
-        const nameMatch = profile.demographics?.name?.toLowerCase().includes(s)
-        const loginMatch = user.login_id?.toLowerCase().includes(s)
-        if (!nameMatch && !loginMatch) return false
+  let assignedDoctorId: string | undefined
+  if (filters.assigned_doctor_id) {
+    const doctorUser = await findDoctorByIdentifier(filters.assigned_doctor_id)
+    if (!doctorUser) {
+      return {
+        patients: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          pages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
       }
-      return true
-    })
+    }
+    assignedDoctorId = String(doctorUser._id)
   }
 
-  const total = await User.countDocuments(query)
+  const filteredUsers = users.filter((user: any) => {
+    const profile = user.profile_id as any
+    if (!profile) return false
+    if (assignedDoctorId && String(profile.assigned_doctor_id) !== assignedDoctorId) return false
+    if (filters.account_status && profile.account_status !== filters.account_status) return false
+    if (filters.search) {
+      const s = filters.search.toLowerCase()
+      const nameMatch = profile.demographics?.name?.toLowerCase().includes(s)
+      const loginMatch = user.login_id?.toLowerCase().includes(s)
+      if (!nameMatch && !loginMatch) return false
+    }
+    return true
+  })
+
+  const total = filteredUsers.length
+  const skip = (page - 1) * limit
+  const paginatedUsers = filteredUsers.slice(skip, skip + limit)
 
   return {
-    patients: users,
+    patients: paginatedUsers,
     pagination: {
       total,
       page,
@@ -287,11 +329,11 @@ export async function updatePatient(
   if (data.account_status) profileUpdate.account_status = data.account_status
 
   if (data.assigned_doctor_id) {
-    const doctorUser = await User.findById(data.assigned_doctor_id)
+    const doctorUser = await findDoctorByIdentifier(data.assigned_doctor_id)
     if (!doctorUser || doctorUser.user_type !== UserType.DOCTOR || !doctorUser.is_active) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid or inactive doctor ID')
     }
-    profileUpdate.assigned_doctor_id = data.assigned_doctor_id
+    profileUpdate.assigned_doctor_id = doctorUser._id
   }
 
   if (Object.keys(profileUpdate).length > 0) {
@@ -339,7 +381,7 @@ export async function reassignPatient(patientLoginId: string, newDoctorId: strin
     throw new ApiError(StatusCodes.BAD_REQUEST, 'User is not a patient')
   }
 
-  const doctorUser = await User.findById(newDoctorId)
+  const doctorUser = await findDoctorByIdentifier(newDoctorId)
   if (!doctorUser || doctorUser.user_type !== UserType.DOCTOR || !doctorUser.is_active) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid or inactive doctor')
   }
@@ -347,13 +389,13 @@ export async function reassignPatient(patientLoginId: string, newDoctorId: strin
   const previousDoctorId = (patientUser.profile_id as any)?.assigned_doctor_id
 
   await PatientProfile.findByIdAndUpdate(patientUser.profile_id, {
-    assigned_doctor_id: newDoctorId,
+    assigned_doctor_id: doctorUser._id,
   })
 
   return {
     message: 'Patient reassigned successfully',
     previous_doctor_id: previousDoctorId,
-    new_doctor_id: newDoctorId,
+    new_doctor_id: String(doctorUser._id),
   }
 }
 
