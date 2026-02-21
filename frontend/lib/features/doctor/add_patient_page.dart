@@ -573,22 +573,28 @@ class _StyledDropdown extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black87),
-          hint: Text(hint ?? 'Select', style: const TextStyle(color: Colors.black54)),
+          icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[700], size: 24),
+          hint: Text(
+            hint ?? 'Select',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
           items: items
               .map((e) => DropdownMenuItem<String>(
                     value: e,
@@ -601,6 +607,8 @@ class _StyledDropdown extends StatelessWidget {
           },
           dropdownColor: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          menuMaxHeight: 300,
+          elevation: 8,
         ),
       ),
     );

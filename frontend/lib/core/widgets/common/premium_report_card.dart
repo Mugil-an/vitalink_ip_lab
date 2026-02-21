@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:frontend/core/widgets/common/file_preview_modal.dart';
 
 class PremiumReportCard extends StatelessWidget {
   final dynamic report;
@@ -38,7 +38,7 @@ class PremiumReportCard extends StatelessWidget {
     }
 
     try {
-      debugPrint('Attempting to open URL: $urlString');
+      debugPrint('Opening file preview: $urlString');
       
       final uri = Uri.parse(urlString);
       
@@ -52,35 +52,15 @@ class PremiumReportCard extends StatelessWidget {
         return;
       }
       
-      final canLaunch = await canLaunchUrl(uri);
-      debugPrint('Can launch URL: $canLaunch');
-      
-      if (canLaunch) {
-        final launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
+      // Show the file preview modal
+      if (context.mounted) {
+        await FilePreviewModal.show(
+          context,
+          fileUrl: urlString,
         );
-        
-        if (!launched && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to open file. Please try again.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No application found to open this file. Please install a PDF viewer or web browser.'),
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
       }
     } catch (e) {
-      debugPrint('Error launching URL: $e');
+      debugPrint('Error opening file preview: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
