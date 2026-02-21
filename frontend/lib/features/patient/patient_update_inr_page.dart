@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
 import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/widgets/common/file_preview_modal.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
@@ -130,109 +131,379 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Form(
-              key: _formKey,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('INR Value :', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87)),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _inrValueController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: _inputDecoration('Enter INR value'),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter INR value';
-                        if (double.tryParse(value) == null) return 'Please enter a valid number';
-                        return null;
-                      },
+            child: Column(
+              children: [
+                Form(
+                  key: _formKey,
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                     ),
-                    const SizedBox(height: 24),
-
-                    const Text('Date of Test :', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87)),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _testDateController,
-                      readOnly: true,
-                      onTap: () => _showDatePicker(context),
-                      decoration: _inputDecoration('dd-mm-yyyy --:--').copyWith(
-                        suffixIcon: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12.0),
-                          child: Icon(Icons.calendar_month, color: Colors.black54),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('INR Value :', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87)),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _inrValueController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: _inputDecoration('Enter INR value'),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return 'Please enter INR value';
+                            if (double.tryParse(value) == null) return 'Please enter a valid number';
+                            return null;
+                          },
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                    const Text('Upload Document:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87)),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: _pickFile,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0E5F5).withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.attach_file, color: Colors.black54, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _selectedFile?.name ?? 'Select a file',
-                                style: TextStyle(
-                                  color: _selectedFile != null ? Colors.black87 : Colors.black54,
-                                  fontSize: 15,
-                                ),
-                              ),
+                        const Text('Date of Test :', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87)),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _testDateController,
+                          readOnly: true,
+                          onTap: () => _showDatePicker(context),
+                          decoration: _inputDecoration('dd-mm-yyyy --:--').copyWith(
+                            suffixIcon: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12.0),
+                              child: Icon(Icons.calendar_month, color: Colors.black54),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
+                        const SizedBox(height: 24),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
-                        onPressed: mutation.isLoading ? null : () {
-                          if (_formKey.currentState!.validate()) {
-                            mutation.mutate({
-                              'inr_value': _inrValueController.text,
-                              'test_date': _testDateController.text,
-                              'file_bytes': _selectedFile?.bytes,
-                              'file_name': _selectedFile?.name,
-                            });
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0084FF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
+                        const Text('Upload Document:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87)),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _pickFile,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0E5F5).withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.black12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.attach_file, color: Colors.black54, size: 20),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _selectedFile?.name ?? 'Select a file',
+                                    style: TextStyle(
+                                      color: _selectedFile != null ? Colors.black87 : Colors.black54,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        child: mutation.isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('Submit INR Report', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      ),
+                        const SizedBox(height: 32),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed: mutation.isLoading ? null : () {
+                              if (_formKey.currentState!.validate()) {
+                                mutation.mutate({
+                                  'inr_value': _inrValueController.text,
+                                  'test_date': _testDateController.text,
+                                  'file_bytes': _selectedFile?.bytes,
+                                  'file_name': _selectedFile?.name,
+                                });
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0084FF),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: mutation.isLoading
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text('Submit INR Report', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 32),
+                _buildReportsHistory(),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildReportsHistory() {
+    return UseQuery<List<Map<String, dynamic>>>(
+      options: QueryOptions(
+        queryKey: ['patient', 'inr_history'],
+        queryFn: () => PatientService.getINRHistory(),
+      ),
+      builder: (context, query) {
+        if (query.isLoading) {
+          return Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (query.isError) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: const Text(
+              'Error loading reports',
+              style: TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+
+        final reports = query.data ?? [];
+        
+        if (reports.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.description_outlined, size: 48, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'No reports yet',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black54),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Your submitted reports will appear here',
+                  style: TextStyle(fontSize: 14, color: Colors.black45),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.history, size: 22, color: const Color(0xFF6B7280)),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Previous Reports',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F2937),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              ...reports.map((report) => _buildReportCard(report)).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReportCard(Map<String, dynamic> report) {
+    final inr = report['inr'] as double;
+    final isCritical = report['isCritical'] as bool;
+    final notes = report['notes'] as String;
+    final hasNotes = notes.isNotEmpty;
+    final hasFile = (report['fileUrl'] as String).isNotEmpty;
+    final status = report['status'] as String;
+    
+    Color statusColor;
+    if (status == 'Normal') {
+      statusColor = const Color(0xFF6B7280);
+    } else if (status == 'Low') {
+      statusColor = const Color(0xFF6B7280);
+    } else {
+      statusColor = const Color(0xFF6B7280);
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'INR: ${inr.toStringAsFixed(1)}',
+                    style: const TextStyle(
+                      color: Color(0xFF1F2937),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ),
+                if (isCritical) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.priority_high, color: Color(0xFF9CA3AF), size: 15),
+                        SizedBox(width: 4),
+                        Text(
+                          'Needs Attention',
+                          style: TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            report['date'] as String,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (hasNotes) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.medical_services_outlined, size: 16, color: const Color(0xFF6B7280)),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Doctor\'s Feedback',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF374151),
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    notes,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6B7280),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (hasFile) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  FilePreviewModal.show(
+                    context,
+                    fileUrl: report['fileUrl'] as String,
+                    fileName: 'INR_Report_${report['date']}.pdf',
+                  );
+                },
+                icon: const Icon(Icons.description_outlined, size: 18),
+                label: const Text(
+                  'View Report',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF374151),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

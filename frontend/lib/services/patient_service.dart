@@ -194,9 +194,13 @@ class PatientService {
         final inrHistory = response.data['data']['report']['inr_history'] as List;
         return inrHistory.map((item) {
           return {
+            'id': item['_id'],
             'date': formatDate(item['test_date']),
             'inr': (item['inr_value'] as num).toDouble(),
-            'notes': item['notes'] ?? 'No notes',
+            'notes': item['notes'] ?? '',
+            'isCritical': item['is_critical'] ?? false,
+            'fileUrl': item['file_url'] ?? '',
+            'uploadedAt': formatDate(item['uploaded_at']),
             'status': _getINRStatus(item['inr_value'], 2.0, 3.0),
           };
         }).toList();
