@@ -55,19 +55,7 @@ app.use(helmet());
 app.use(limiter);
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-
-    if (corsAllowlist.has(normalizeOrigin(origin))) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new ApiError(StatusCodes.FORBIDDEN, 'Origin not allowed by CORS'));
-  },
+  origin: "*",
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 204,
