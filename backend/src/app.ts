@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import limiter from "./config/ratelimiter";
 import router from "./routes";
@@ -29,17 +29,16 @@ if (corsAllowlist.size === 0) {
   logger.warn('CORS_ORIGINS is empty, requests with an Origin header will be blocked');
 }
 
-morgan.token('request-id', (req) => req.requestId ?? '-');
+morgan.token('request-id', (req: Request) => (req as any).requestId ?? '-');
 
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const incomingRequestId = req.header('x-request-id')?.trim();
-  // Sanitize: strip control characters and limit length to prevent log injection
   const sanitized = incomingRequestId
     ? incomingRequestId.replace(/[^\x20-\x7E]/g, '').slice(0, 128)
     : '';
   const requestId = sanitized || randomUUID();
 
-  req.requestId = requestId;
+  (req as any).requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
   next();
 });
