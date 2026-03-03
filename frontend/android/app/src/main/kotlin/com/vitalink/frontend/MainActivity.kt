@@ -1,4 +1,4 @@
-package com.example.frontend
+package com.vitalink.frontend
 
 import io.flutter.embedding.android.FlutterActivity
 

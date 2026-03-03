@@ -9,11 +9,13 @@ declare global {
     interface Request {
       user?: JWTPayload
       requestId?: string
+      validatedQuery?: unknown
     }
   }
 }
 declare module "express-serve-static-core" {
   interface Request {
     requestId?: string;
+    validatedQuery?: unknown;
   }
 }

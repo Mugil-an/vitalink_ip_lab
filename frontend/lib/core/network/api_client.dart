@@ -111,6 +111,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     bool authenticated = true,
   }) async {
+    final hasQueryParams = queryParameters != null && queryParameters.isNotEmpty;
     try {
       final headers = await _buildHeaders(includeAuth: authenticated);
       _logDebug('GET Request to: $path');
@@ -125,8 +126,23 @@ class ApiClient {
       _logDebug('GET Response status: ${response.statusCode}');
       return _normalizeResponse(response);
     } on DioException catch (e) {
+      final message = _extractMessage(e);
+      if (hasQueryParams && _isIncomingMessageQuerySetterError(message)) {
+        _logDebug(
+          'Backend query-parser incompatibility detected. Retrying GET without query parameters: $path',
+        );
+        final headers = await _buildHeaders(includeAuth: authenticated);
+        final retryResponse = await _sendWithRetry(
+          () => _dio.get<Map<String, dynamic>>(
+            path,
+            options: Options(headers: headers),
+          ),
+          retryOnFailure: true,
+        );
+        return _normalizeResponse(retryResponse);
+      }
       throw ApiException(
-        _extractMessage(e),
+        message,
         statusCode: e.response?.statusCode,
       );
     }
@@ -212,6 +228,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     bool authenticated = true,
   }) async {
+    final hasQueryParams = queryParameters != null && queryParameters.isNotEmpty;
     try {
       final headers = await _buildHeaders(includeAuth: authenticated);
       final response = await _sendWithRetry(
@@ -226,14 +243,37 @@ class ApiClient {
       final body = response.data ?? <String, dynamic>{};
       if (statusCode >= 400 || body['success'] == false) {
         throw ApiException(
-          body['message'] as String? ?? 'Request failed',
+          _sanitizeServerMessage(body['message']?.toString()),
           statusCode: statusCode,
         );
       }
       return body;
     } on DioException catch (e) {
+      final message = _extractMessage(e);
+      if (hasQueryParams && _isIncomingMessageQuerySetterError(message)) {
+        _logDebug(
+          'Backend query-parser incompatibility detected. Retrying raw GET without query parameters: $path',
+        );
+        final headers = await _buildHeaders(includeAuth: authenticated);
+        final retryResponse = await _sendWithRetry(
+          () => _dio.get<Map<String, dynamic>>(
+            path,
+            options: Options(headers: headers),
+          ),
+          retryOnFailure: true,
+        );
+        final statusCode = retryResponse.statusCode ?? 500;
+        final body = retryResponse.data ?? <String, dynamic>{};
+        if (statusCode >= 400 || body['success'] == false) {
+          throw ApiException(
+            _sanitizeServerMessage(body['message']?.toString()),
+            statusCode: statusCode,
+          );
+        }
+        return body;
+      }
       throw ApiException(
-        _extractMessage(e),
+        message,
         statusCode: e.response?.statusCode,
       );
     }
@@ -263,7 +303,7 @@ class ApiClient {
 
     if (statusCode >= 400 || body['success'] == false) {
       throw ApiException(
-        body['message'] as String? ?? 'Request failed',
+        _sanitizeServerMessage(body['message']?.toString()),
         statusCode: statusCode,
       );
     }
@@ -296,9 +336,27 @@ class ApiClient {
 
     if (res?.data is Map<String, dynamic>) {
       final map = res?.data as Map<String, dynamic>;
-      if (map['message'] is String) return map['message'] as String;
-      if (map['error'] is String) return map['error'] as String;
+      if (map['message'] is String) {
+        return _sanitizeServerMessage(map['message'] as String);
+      }
+      if (map['error'] is String) {
+        return _sanitizeServerMessage(map['error'] as String);
+      }
     }
-    return e.message ?? 'Network error';
+    return _sanitizeServerMessage(e.message);
+  }
+
+  bool _isIncomingMessageQuerySetterError(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('cannot set property query') &&
+        (lower.contains('incomingmessage') || lower.contains('incommingmessage'));
+  }
+
+  String _sanitizeServerMessage(String? raw) {
+    final message = (raw == null || raw.trim().isEmpty) ? 'Request failed' : raw;
+    if (_isIncomingMessageQuerySetterError(message)) {
+      return 'Server configuration error. Please contact support.';
+    }
+    return message;
   }
 }
