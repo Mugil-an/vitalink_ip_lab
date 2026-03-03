@@ -1,9 +1,14 @@
 class AppStrings {
   AppStrings._();
 
+  /// Build-time define key for backend API base URL.
+  static const String apiBaseUrlDefine = 'API_BASE_URL';
+
   /// Base URL for the backend API.
-  /// Note: Use http for local dev to avoid TLS/host issues in Flutter web.
-  static const String apiBaseUrl = 'https://vitalink-ip-lab-1.onrender.com';
+  static const String apiBaseUrl = String.fromEnvironment(
+    apiBaseUrlDefine,
+    defaultValue: 'https://vitalink-ip-lab-1.onrender.com',
+  );
 
   /// Auth endpoints.
   static const String loginPath = '/api/auth/login';

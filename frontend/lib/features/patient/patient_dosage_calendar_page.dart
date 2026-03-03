@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
-import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 import 'package:intl/intl.dart';
 
@@ -43,7 +43,7 @@ class _PatientDosageCalendarPageState extends State<PatientDosageCalendarPage> {
       options: QueryOptions<Map<String, dynamic>>(
         queryKey: ['patient', 'dosage_calendar', _loadedMonths],
         queryFn: () async {
-          return await PatientService.getDosageCalendar(months: _loadedMonths);
+          return await AppDependencies.patientRepository.getDosageCalendar(months: _loadedMonths);
         },
       ),
       builder: (context, query) {

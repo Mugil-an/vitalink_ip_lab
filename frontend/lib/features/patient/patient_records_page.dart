@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
-import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 
 class PatientRecordsPage extends StatefulWidget {
@@ -21,8 +21,8 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
       options: QueryOptions<Map<String, dynamic>>(
         queryKey: const ['patient', 'records_full'],
         queryFn: () async {
-          final profile = await PatientService.getProfile();
-          final history = await PatientService.getINRHistory();
+          final profile = await AppDependencies.patientRepository.getProfile();
+          final history = await AppDependencies.patientRepository.getINRHistory();
           return {
             'profile': profile,
             'history': history,
@@ -379,7 +379,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
             final type = log['type'] ?? 'OTHER';
             final severity = log['severity'] ?? 'Normal';
             final isResolved = log['is_resolved'] ?? true;
-            final dateStr = PatientService.formatDate(log['date']);
+            final dateStr = AppDependencies.patientRepository.formatDate(log['date']);
 
             return Card(
               elevation: 1,
@@ -728,7 +728,7 @@ class _PatientRecordsPageState extends State<PatientRecordsPage> {
 
                       setDialogState(() => isSubmitting = true);
                       try {
-                        await PatientService.submitHealthLog(
+                        await AppDependencies.patientRepository.submitHealthLog(
                           type: selectedType,
                           description: description,
                         );

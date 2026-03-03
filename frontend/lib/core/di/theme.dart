@@ -7,6 +7,7 @@ class AppColors {
 	static const Color accent = Color(0xFFDC267F);
 	static const Color warning = Color(0xFFFE6100);
 	static const Color info = Color(0xFFFFB000);
+	static const Color navInactive = Color(0xFFB6B6B6);
 
 	// Backgrounds
 	// Note: Flutter Color uses ARGB; #ffffff99 (CSS) becomes 0x99FFFFFF in ARGB.
@@ -37,6 +38,11 @@ class AppTheme {
 		inputDecorationTheme: const InputDecorationTheme(
 			border: OutlineInputBorder(),
 		),
+		bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+			selectedItemColor: AppColors.warning,
+			unselectedItemColor: AppColors.navInactive,
+			backgroundColor: Colors.white,
+		),
 		elevatedButtonTheme: ElevatedButtonThemeData(
 			style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
 		),
@@ -59,9 +65,13 @@ class AppTheme {
 		inputDecorationTheme: const InputDecorationTheme(
 			border: OutlineInputBorder(),
 		),
+		bottomNavigationBarTheme: BottomNavigationBarThemeData(
+			selectedItemColor: AppColors.warning,
+			unselectedItemColor: AppColors.navInactive.withValues(alpha: 0.85),
+			backgroundColor: AppColors.backgroundDark,
+		),
 		elevatedButtonTheme: ElevatedButtonThemeData(
 			style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
 		),
 	);
 }
-

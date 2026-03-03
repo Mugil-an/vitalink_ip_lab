@@ -75,19 +75,32 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
           child: () {
             switch (_currentNavIndex) {
               case 1:
-                return const AddPatientForm();
+                return const KeyedSubtree(
+                  key: ValueKey('doctor-nav-add'),
+                  child: AddPatientForm(),
+                );
               case 2:
-                return const DoctorReportsPage();
+                return const KeyedSubtree(
+                  key: ValueKey('doctor-nav-reports'),
+                  child: DoctorReportsPage(),
+                );
               case 3:
-                return const DoctorProfilePage();
+                return const KeyedSubtree(
+                  key: ValueKey('doctor-nav-profile'),
+                  child: DoctorProfilePage(),
+                );
               case 0:
               default:
-                return _PatientsView(
-                  repository: _doctorRepository,
-                  isTableView: _isTableView,
-                  onToggleView: (table) => setState(() => _isTableView = table),
-                  searchController: _searchController,
-                  filterPatients: _filteredPatients,
+                return KeyedSubtree(
+                  key: const ValueKey('doctor-nav-patients'),
+                  child: _PatientsView(
+                    repository: _doctorRepository,
+                    isTableView: _isTableView,
+                    onToggleView: (table) =>
+                        setState(() => _isTableView = table),
+                    searchController: _searchController,
+                    filterPatients: _filteredPatients,
+                  ),
                 );
             }
           }(),
@@ -165,8 +178,15 @@ class _PatientsView extends StatelessWidget {
                   duration: const Duration(milliseconds: 300),
                   switchInCurve: Curves.easeOutBack,
                   switchOutCurve: Curves.easeIn,
-                  child:
-                      isTableView ? _TableView(filtered) : _CardView(filtered),
+                  child: isTableView
+                      ? _TableView(
+                          filtered,
+                          key: const ValueKey('patients-table-view'),
+                        )
+                      : _CardView(
+                          filtered,
+                          key: const ValueKey('patients-card-view'),
+                        ),
                 ),
             ],
           ),
@@ -258,7 +278,7 @@ class _ToggleBar extends StatelessWidget {
 }
 
 class _CardView extends StatelessWidget {
-  const _CardView(this.patients);
+  const _CardView(this.patients, {super.key});
   final List<PatientModel> patients;
 
   @override
@@ -280,7 +300,7 @@ class _CardView extends StatelessWidget {
 }
 
 class _TableView extends StatelessWidget {
-  const _TableView(this.patients);
+  const _TableView(this.patients, {super.key});
   final List<PatientModel> patients;
 
   @override

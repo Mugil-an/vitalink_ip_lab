@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
-import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 
 class PatientTakeDosagePage extends StatefulWidget {
@@ -22,7 +22,7 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
       options: QueryOptions<Map<String, dynamic>>(
         queryKey: const ['patient', 'missed_doses'],
         queryFn: () async {
-          return await PatientService.getMissedDoses();
+          return await AppDependencies.patientRepository.getMissedDoses();
         },
       ),
       builder: (context, query) {
@@ -71,7 +71,7 @@ class _PatientTakeDosagePageState extends State<PatientTakeDosagePage> {
 
         return UseMutation<void, Map<String, dynamic>>(
           options: MutationOptions<void, Map<String, dynamic>>(
-            mutationFn: (variables) => PatientService.markDoseAsTaken(
+            mutationFn: (variables) => AppDependencies.patientRepository.markDoseAsTaken(
               date: variables['date'],
               dose: variables['dose'],
             ),

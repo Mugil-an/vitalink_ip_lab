@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
-import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 import 'package:frontend/core/widgets/common/file_preview_modal.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 import 'package:intl/intl.dart';
@@ -84,7 +84,7 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
   Widget build(BuildContext context) {
     return UseMutation<void, Map<String, dynamic>>(
       options: MutationOptions<void, Map<String, dynamic>>(
-        mutationFn: (variables) => PatientService.submitINRReport(
+        mutationFn: (variables) => AppDependencies.patientRepository.submitINRReport(
           inrValue: variables['inr_value'],
           testDate: variables['test_date'],
           fileBytes: variables['file_bytes'],
@@ -293,7 +293,7 @@ class _PatientUpdateINRPageState extends State<PatientUpdateINRPage> {
     return UseQuery<List<Map<String, dynamic>>>(
       options: QueryOptions(
         queryKey: ['patient', 'inr_history'],
-        queryFn: () => PatientService.getINRHistory(),
+        queryFn: () => AppDependencies.patientRepository.getINRHistory(),
       ),
       builder: (context, query) {
         if (query.isLoading) {

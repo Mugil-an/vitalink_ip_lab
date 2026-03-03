@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-const Color _inactiveColor = Color(0xFFB6B6B6);
-const Color _activeColor = Color(0xFFFF7643);
-
 class PatientBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
@@ -16,17 +13,25 @@ class PatientBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final navTheme = theme.bottomNavigationBarTheme;
+    final activeColor = navTheme.selectedItemColor ?? theme.colorScheme.primary;
+    final inactiveColor =
+        navTheme.unselectedItemColor ??
+        theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    final navBackgroundColor = navTheme.backgroundColor ?? theme.colorScheme.surface;
+
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: navBackgroundColor,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -38,22 +43,47 @@ class PatientBottomNavBar extends StatelessWidget {
               currentIndex: currentIndex,
               onTap: onTap,
               type: BottomNavigationBarType.fixed,
-              backgroundColor: Colors.white,
+              backgroundColor: navBackgroundColor,
               showSelectedLabels: true,
               showUnselectedLabels: true,
-              selectedItemColor: _activeColor,
-              unselectedItemColor: _inactiveColor,
+              selectedItemColor: activeColor,
+              unselectedItemColor: inactiveColor,
               selectedLabelStyle:
                   const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
               unselectedLabelStyle:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 10),
               elevation: 0,
               items: [
-                _navItem(iconSvg: _homeIcon, label: 'Home'),
-                _navItem(iconSvg: _inrIcon, label: 'Update INR'),
-                _navItem(iconSvg: _dosageIcon, label: 'Dosage'),
-                _navItem(iconSvg: _recordsIcon, label: 'Notes'),
-                _navItem(iconSvg: _profileIcon, label: 'Profile'),
+                _navItem(
+                  iconSvg: _homeIcon,
+                  label: 'Home',
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+                _navItem(
+                  iconSvg: _inrIcon,
+                  label: 'Update INR',
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+                _navItem(
+                  iconSvg: _dosageIcon,
+                  label: 'Dosage',
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+                _navItem(
+                  iconSvg: _recordsIcon,
+                  label: 'Notes',
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+                _navItem(
+                  iconSvg: _profileIcon,
+                  label: 'Profile',
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
               ],
             ),
           ),
@@ -62,16 +92,20 @@ class PatientBottomNavBar extends StatelessWidget {
     );
   }
 
-  BottomNavigationBarItem _navItem(
-      {required String iconSvg, required String label}) {
+  BottomNavigationBarItem _navItem({
+    required String iconSvg,
+    required String label,
+    required Color activeColor,
+    required Color inactiveColor,
+  }) {
     return BottomNavigationBarItem(
       icon: SvgPicture.string(
         iconSvg,
-        colorFilter: const ColorFilter.mode(_inactiveColor, BlendMode.srcIn),
+        colorFilter: ColorFilter.mode(inactiveColor, BlendMode.srcIn),
       ),
       activeIcon: SvgPicture.string(
         iconSvg,
-        colorFilter: const ColorFilter.mode(_activeColor, BlendMode.srcIn),
+        colorFilter: ColorFilter.mode(activeColor, BlendMode.srcIn),
       ),
       label: label,
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
-import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 
 class PatientProfilePage extends StatefulWidget {
@@ -13,6 +13,7 @@ class PatientProfilePage extends StatefulWidget {
 
 class _PatientProfilePageState extends State<PatientProfilePage> {
   final int _currentNavIndex = 4;
+  bool _autoReadInProgress = false;
 
   @override
   Widget build(BuildContext context) {
@@ -20,10 +21,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       options: QueryOptions<Map<String, dynamic>>(
         queryKey: const ['patient', 'profile_full'],
         queryFn: () async {
-          final profile = await PatientService.getProfile();
-          final history = await PatientService.getINRHistory();
-          final latest = await PatientService.getLatestINR();
-          final doctorUpdates = await PatientService.getDoctorUpdates(limit: 5);
+          final profile = await AppDependencies.patientRepository.getProfile();
+          final history = await AppDependencies.patientRepository.getINRHistory();
+          final latest = await AppDependencies.patientRepository.getLatestINR();
+          final doctorUpdates = await AppDependencies.patientRepository.getDoctorUpdates(limit: 5);
           return {
             'profile': profile,
             'history': history,
@@ -72,6 +73,32 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         final data = query.data!;
         final profile = data['profile'] as Map<String, dynamic>;
         final doctorUpdates = (data['doctorUpdates'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final unreadCount = (profile['doctorUpdatesUnreadCount'] as num?)?.toInt() ?? 0;
+
+        if (!_autoReadInProgress && unreadCount > 0 && doctorUpdates.isNotEmpty) {
+          _autoReadInProgress = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            try {
+              final unreadUpdates = doctorUpdates.where((event) {
+                final eventId = event['id']?.toString() ?? '';
+                final isRead = event['isRead'] == true;
+                return eventId.isNotEmpty && !isRead;
+              }).toList();
+
+              for (final event in unreadUpdates) {
+                await AppDependencies.patientRepository.markDoctorUpdateAsRead(event['id'].toString());
+              }
+
+              if (mounted) {
+                await query.refetch();
+              }
+            } catch (_) {
+              // Ignore transient failures; user can refresh to retry.
+            } finally {
+              _autoReadInProgress = false;
+            }
+          });
+        }
 
         return PatientScaffold(
           pageTitle: 'My Profile',
@@ -96,7 +123,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   const SizedBox(height: 20),
                   _DoctorUpdatesCard(
                     updates: doctorUpdates,
-                    unreadCount: (profile['doctorUpdatesUnreadCount'] as num?)?.toInt() ?? 0,
+                    unreadCount: unreadCount,
                   ),
 
                 ],

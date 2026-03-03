@@ -17,136 +17,136 @@ class _AnalyticsDashboardPageState extends State<AnalyticsDashboardPage> {
   final AdminRepository _repo = AppDependencies.adminRepository;
   String _selectedPeriod = '30d';
 
+  Future<_AnalyticsDashboardAggregate> _fetchDashboardAggregate() async {
+    final statsFuture = _safeLoad(_repo.getAdminStats);
+    final trendsFuture = _safeLoad(
+      () => _repo.getTrends(period: _selectedPeriod),
+    );
+    final complianceFuture = _safeLoad(_repo.getCompliance);
+    final workloadFuture = _safeLoad(_repo.getWorkload);
+
+    final stats = await statsFuture;
+    final trends = await trendsFuture;
+    final compliance = await complianceFuture;
+    final workload = await workloadFuture;
+
+    return _AnalyticsDashboardAggregate(
+      stats: stats,
+      trends: trends,
+      compliance: compliance,
+      workload: workload ?? const [],
+    );
+  }
+
+  Future<T?> _safeLoad<T>(Future<T> Function() loader) async {
+    try {
+      return await loader();
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final showPageScaffold = !AdminScaffold.usesShellAppBar(context);
 
-    final body = UseQuery<AdminStatsModel>(
-      options: QueryOptions<AdminStatsModel>(
-        queryKey: const ['admin', 'analytics', 'stats'],
-        queryFn: _repo.getAdminStats,
+    final body = UseQuery<_AnalyticsDashboardAggregate>(
+      options: QueryOptions<_AnalyticsDashboardAggregate>(
+        queryKey: ['admin', 'analytics', 'dashboard', _selectedPeriod],
+        queryFn: _fetchDashboardAggregate,
       ),
-      builder: (context, statsQuery) {
-        return UseQuery<RegistrationTrends>(
-          options: QueryOptions<RegistrationTrends>(
-            queryKey: ['admin', 'analytics', 'trends', _selectedPeriod],
-            queryFn: () => _repo.getTrends(period: _selectedPeriod),
-          ),
-          builder: (context, trendsQuery) {
-            return UseQuery<InrComplianceStats>(
-              options: QueryOptions<InrComplianceStats>(
-                queryKey: const ['admin', 'analytics', 'compliance'],
-                queryFn: _repo.getCompliance,
-              ),
-              builder: (context, complianceQuery) {
-                return UseQuery<List<DoctorWorkload>>(
-                  options: QueryOptions<List<DoctorWorkload>>(
-                    queryKey: const ['admin', 'analytics', 'workload'],
-                    queryFn: _repo.getWorkload,
-                  ),
-                  builder: (context, workloadQuery) {
-                    final isLoading =
-                        statsQuery.isLoading || trendsQuery.isLoading;
+      builder: (context, aggregateQuery) {
+        if (aggregateQuery.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-                    if (isLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    return SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (!showPageScaffold)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Analytics Dashboard',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge,
-                                    ),
-                                  ),
-                                  DropdownButton<String>(
-                                    value: _selectedPeriod,
-                                    underline: const SizedBox(),
-                                    icon: const Icon(
-                                      Icons.calendar_today_rounded,
-                                      size: 20,
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: '7d',
-                                        child: Text('7 Days'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: '30d',
-                                        child: Text('30 Days'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: '90d',
-                                        child: Text('90 Days'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: '1y',
-                                        child: Text('1 Year'),
-                                      ),
-                                    ],
-                                    onChanged: (v) {
-                                      if (v != null) {
-                                        setState(() => _selectedPeriod = v);
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          _SummaryCards(stats: statsQuery.data),
-                          const SizedBox(height: 24),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final width = constraints.maxWidth;
-                              final isDesktop = width > 900;
-                              return Wrap(
-                                spacing: 16,
-                                runSpacing: 16,
-                                children: [
-                                  SizedBox(
-                                    width: isDesktop ? (width - 16) / 2 : width,
-                                    height: 350,
-                                    child:
-                                        _TrendsChart(trends: trendsQuery.data),
-                                  ),
-                                  SizedBox(
-                                    width: isDesktop ? (width - 16) / 2 : width,
-                                    height: 350,
-                                    child: _ComplianceChart(
-                                      compliance: complianceQuery.data,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: isDesktop ? (width - 16) / 2 : width,
-                                    height: 350,
-                                    child: _WorkloadChart(
-                                      workload: workloadQuery.data ?? [],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
+        final aggregate = aggregateQuery.data;
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!showPageScaffold)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Analytics Dashboard',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      DropdownButton<String>(
+                        value: _selectedPeriod,
+                        underline: const SizedBox(),
+                        icon: const Icon(
+                          Icons.calendar_today_rounded,
+                          size: 20,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: '7d',
+                            child: Text('7 Days'),
+                          ),
+                          DropdownMenuItem(
+                            value: '30d',
+                            child: Text('30 Days'),
+                          ),
+                          DropdownMenuItem(
+                            value: '90d',
+                            child: Text('90 Days'),
+                          ),
+                          DropdownMenuItem(
+                            value: '1y',
+                            child: Text('1 Year'),
                           ),
                         ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() => _selectedPeriod = v);
+                          }
+                        },
                       ),
-                    );
-                  },
-                );
-              },
-            );
-          },
+                    ],
+                  ),
+                ),
+              _SummaryCards(stats: aggregate?.stats),
+              const SizedBox(height: 24),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final isDesktop = width > 900;
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      SizedBox(
+                        width: isDesktop ? (width - 16) / 2 : width,
+                        height: 350,
+                        child: _TrendsChart(trends: aggregate?.trends),
+                      ),
+                      SizedBox(
+                        width: isDesktop ? (width - 16) / 2 : width,
+                        height: 350,
+                        child: _ComplianceChart(
+                          compliance: aggregate?.compliance,
+                        ),
+                      ),
+                      SizedBox(
+                        width: isDesktop ? (width - 16) / 2 : width,
+                        height: 350,
+                        child: _WorkloadChart(
+                          workload: aggregate?.workload ?? const [],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -181,6 +181,20 @@ class _AnalyticsDashboardPageState extends State<AnalyticsDashboardPage> {
       body: body,
     );
   }
+}
+
+class _AnalyticsDashboardAggregate {
+  const _AnalyticsDashboardAggregate({
+    required this.stats,
+    required this.trends,
+    required this.compliance,
+    required this.workload,
+  });
+
+  final AdminStatsModel? stats;
+  final RegistrationTrends? trends;
+  final InrComplianceStats? compliance;
+  final List<DoctorWorkload> workload;
 }
 
 // ─── Summary Cards ───

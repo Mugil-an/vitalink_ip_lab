@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:frontend/core/widgets/index.dart';
-import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 import 'package:frontend/app/routers.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 
@@ -21,11 +21,11 @@ class _PatientPageState extends State<PatientPage> {
       options: QueryOptions<Map<String, dynamic>>(
         queryKey: const ['patient', 'home_data'],
         queryFn: () async {
-          final profile = await PatientService.getProfile();
-          final history = await PatientService.getINRHistory();
-          final prescriptions = await PatientService.getPrescriptions();
-          final latestINRData = await PatientService.getLatestINRData();
-          final missedDoses = await PatientService.getMissedDoses();
+          final profile = await AppDependencies.patientRepository.getProfile();
+          final history = await AppDependencies.patientRepository.getINRHistory();
+          final prescriptions = await AppDependencies.patientRepository.getPrescriptions();
+          final latestINRData = await AppDependencies.patientRepository.getLatestINRData();
+          final missedDoses = await AppDependencies.patientRepository.getMissedDoses();
 
           return {
             'profile': profile,

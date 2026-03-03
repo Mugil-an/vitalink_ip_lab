@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/core/widgets/index.dart';
 import 'package:frontend/app/routers.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
-import 'package:frontend/services/patient_service.dart';
+import 'package:frontend/core/di/app_dependencies.dart';
 
 class PatientHealthReportsPage extends StatefulWidget {
   const PatientHealthReportsPage({super.key});
@@ -427,7 +427,7 @@ class _PatientHealthReportsPageState extends State<PatientHealthReportsPage> {
   }
 
   Future<void> _submitHealthLog(Map<String, dynamic> variables) async {
-    await PatientService.submitHealthLog(
+    await AppDependencies.patientRepository.submitHealthLog(
       type: variables['type'] as String,
       description: variables['description'] as String,
     );
