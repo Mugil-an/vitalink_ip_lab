@@ -261,7 +261,10 @@ class _PatientDetailContentState extends State<_PatientDetailContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Patient Header Card
-                _PatientHeaderCard(patient: patient),
+                _PatientHeaderCard(
+                  patient: patient,
+                  opNumber: widget.opNumber
+                ),
 
                 const SizedBox(height: 16),
 
@@ -320,8 +323,12 @@ class _PatientDetailContentState extends State<_PatientDetailContent> {
 
 class _PatientHeaderCard extends StatelessWidget {
   final PatientDetailModel patient;
+  final String opNumber;
 
-  const _PatientHeaderCard({required this.patient});
+  const _PatientHeaderCard({
+    required this.patient,
+    required this.opNumber,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -379,7 +386,7 @@ class _PatientHeaderCard extends StatelessWidget {
                   children: [
                     _InfoChip(
                       icon: Icons.badge_outlined,
-                      label: 'OP #${patient.opNumber ?? 'N/A'}',
+                      label: 'OP #${patient.opNumber ?? opNumber}',
                       color: const Color(0xFF6366F1),
                     ),
                   ],

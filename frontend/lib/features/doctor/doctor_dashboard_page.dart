@@ -397,7 +397,7 @@ class _TableView extends StatelessWidget {
           DataColumn(label: Text('OP #')),
           DataColumn(label: Text('Age')),
           DataColumn(label: Text('Gender')),
-          DataColumn(label: Text('Condition')),
+          // DataColumn(label: Text('Condition')),
           DataColumn(label: Text('Action')),
         ],
         rows: patients
@@ -515,10 +515,10 @@ class _PatientCard extends StatelessWidget {
             style: const TextStyle(color: Colors.black54, fontSize: 12)),
         Text('Age: ${patient.age ?? '-'}, Gender: ${patient.gender ?? '-'}',
             style: const TextStyle(color: Colors.black54, fontSize: 12)),
-        Text(
-          'Condition: ${patient.condition ?? 'Not Available'}',
-          style: const TextStyle(color: Colors.black54, fontSize: 12),
-        ),
+        // Text(
+        //   'Condition: ${patient.condition ?? 'Not Available'}',
+        //   style: const TextStyle(color: Colors.black54, fontSize: 12),
+        // ),
         const SizedBox(height: 10),
         Align(
           alignment: Alignment.centerRight,
