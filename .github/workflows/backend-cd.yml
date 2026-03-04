@@ -1,0 +1,126 @@
+name: Backend CD - Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "deploy/**"
+      - ".github/workflows/backend-cd.yml"
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Never cancel an in-progress deploy
+
+jobs:
+  # -------------------------------------------------------------------
+  # Job 1: Run CI checks first (build + test)
+  # -------------------------------------------------------------------
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npx jest --coverage
+
+  # -------------------------------------------------------------------
+  # Job 2: Deploy to EC2 with zero downtime
+  # -------------------------------------------------------------------
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -e
+
+            APP_DIR="/opt/vitalink"
+            cd "$APP_DIR"
+
+            echo "=== Pulling latest code ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Running zero-downtime deployment ==="
+            cd deploy
+            chmod +x deploy.sh
+            ./deploy.sh deploy
+
+            echo "=== Deployment complete ==="
+            ./deploy.sh status
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            # Wait a moment for everything to stabilize
+            sleep 5
+
+            # Hit the health endpoint
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health/ready)
+
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "Health check PASSED (HTTP $HTTP_STATUS)"
+            else
+              echo "Health check FAILED (HTTP $HTTP_STATUS)"
+              echo "Rolling back..."
+              cd /opt/vitalink/deploy
+              ./deploy.sh rollback
+              exit 1
+            fi
+
+      - name: Notify on failure
+        if: failure()
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            echo "Deployment failed! Checking if rollback is needed..."
+            cd /opt/vitalink/deploy
+
+            # Check if the app is still healthy
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health/ready 2>/dev/null || echo "000")
+
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "App is unhealthy. Initiating rollback..."
+              ./deploy.sh rollback
+            else
+              echo "App is still healthy. No rollback needed."
+            fi

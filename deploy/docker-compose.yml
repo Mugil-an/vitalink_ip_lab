@@ -1,0 +1,82 @@
+version: "3.8"
+
+# Blue-Green deployment setup for zero-downtime
+# Two identical app containers run behind Nginx.
+# During deployment, the new version starts on the inactive slot,
+# gets health-checked, then Nginx switches traffic to it.
+
+services:
+  app-blue:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: vitalink-blue
+    env_file: .env.production
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http=require('http');const req=http.get({host:'127.0.0.1',port:3000,path:'/health/ready'},res=>process.exit(res.statusCode===200?0:1));req.on('error',()=>process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - vitalink-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app-green:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: vitalink-green
+    env_file: .env.production
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http=require('http');const req=http.get({host:'127.0.0.1',port:3000,path:'/health/ready'},res=>process.exit(res.statusCode===200?0:1));req.on('error',()=>process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - vitalink-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    container_name: vitalink-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - app-blue
+      - app-green
+    restart: unless-stopped
+    networks:
+      - vitalink-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  vitalink-net:
+    driver: bridge

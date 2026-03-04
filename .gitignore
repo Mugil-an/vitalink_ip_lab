@@ -1,1 +1,11 @@
 backend/build/src
+
+# Deploy secrets
+deploy/.env.production
+deploy/.active-slot
+deploy/nginx/certs/
+
+# OS files
+.DS_Store
+Thumbs.db
+deploy/vitalink-pem-key-pair.pem
