@@ -329,6 +329,8 @@ class ApiClient {
     final res = e.response;
     _logDebug('API Error - Status Code: ${res?.statusCode}');
     _logDebug('API Error - Response: ${res?.data}');
+    _logDebug('API Error - Dio Type: ${e.type}');
+    _logDebug('API Error - Dio Message: ${e.message}');
 
     if (res?.statusCode == 401) {
       _logDebug('Authentication failed - token may be invalid or expired');
@@ -343,6 +345,13 @@ class ApiClient {
         return _sanitizeServerMessage(map['error'] as String);
       }
     }
+
+    if (_isConnectionFailure(e)) {
+      return _sanitizeServerMessage(
+        'Unable to reach the server. Check your internet connection and try again.',
+      );
+    }
+
     return _sanitizeServerMessage(e.message);
   }
 
@@ -354,9 +363,41 @@ class ApiClient {
 
   String _sanitizeServerMessage(String? raw) {
     final message = (raw == null || raw.trim().isEmpty) ? 'Request failed' : raw;
+
+    // Flutter Web often wraps CORS/TLS/DNS failures in this XHR onError text.
+    if (_isBrowserXhrNetworkError(message)) {
+      return 'Unable to reach the server. Please try again in a moment.';
+    }
+
     if (_isIncomingMessageQuerySetterError(message)) {
       return 'Server configuration error. Please contact support.';
     }
     return message;
+  }
+
+  bool _isConnectionFailure(DioException e) {
+    final noResponse = e.response == null;
+    final isConnectionType =
+        e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout;
+    if (isConnectionType && noResponse) return true;
+
+    // Dio on web may surface these failures as unknown with an XHR onError message.
+    final message = (e.message ?? '').toLowerCase();
+    if (kIsWeb &&
+        e.type == DioExceptionType.unknown &&
+        (message.contains('xmlhttprequest onerror callback was called') ||
+            message.contains('network layer'))) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isBrowserXhrNetworkError(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('xmlhttprequest onerror callback was called') ||
+        lower.contains('error on the network layer');
   }
 }

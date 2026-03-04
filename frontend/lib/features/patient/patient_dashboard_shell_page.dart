@@ -55,6 +55,7 @@ class _PatientDashboardShellPageState extends State<PatientDashboardShellPage>
   late int _currentNavIndex;
   late final List<Widget> _tabs;
   int? _lastObservedUnreadCount;
+  int? _lastPromptedUnreadCount;
   Timer? _unreadRefreshTimer;
   bool _popupScheduled = false;
   bool _announcementPopupScheduled = false;
@@ -123,8 +124,11 @@ class _PatientDashboardShellPageState extends State<PatientDashboardShellPage>
         },
       ),
       builder: (context, updatesQuery) {
-        final unreadDoctorUpdates = updatesQuery.data ?? 0;
-        _maybeShowUnreadPopup(unreadDoctorUpdates);
+        final unreadDoctorUpdates =
+            updatesQuery.data ?? _lastObservedUnreadCount ?? 0;
+        if (updatesQuery.data != null) {
+          _maybeShowUnreadPopup(updatesQuery.data!);
+        }
 
         return UseQuery<int>(
           options: QueryOptions<int>(
@@ -168,8 +172,18 @@ class _PatientDashboardShellPageState extends State<PatientDashboardShellPage>
   }
 
   void _maybeShowUnreadPopup(int unreadCount) {
+    if (unreadCount <= 0) {
+      _lastObservedUnreadCount = unreadCount;
+      _lastPromptedUnreadCount = null;
+      return;
+    }
+
     final previousUnread = _lastObservedUnreadCount;
     _lastObservedUnreadCount = unreadCount;
+    if (_lastPromptedUnreadCount == unreadCount) {
+      return;
+    }
+
     if (!shouldShowUnreadUpdatesPopup(
       unreadCount: unreadCount,
       previousUnreadCount: previousUnread,
@@ -179,12 +193,13 @@ class _PatientDashboardShellPageState extends State<PatientDashboardShellPage>
     }
 
     _popupScheduled = true;
+    _lastPromptedUnreadCount = unreadCount;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
       showDialog<void>(
         context: context,
-        builder: (context) {
+        builder: (dialogContext) {
           return AlertDialog(
             title: const Text('New Doctor Updates'),
             content: Text(
@@ -195,16 +210,23 @@ class _PatientDashboardShellPageState extends State<PatientDashboardShellPage>
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
                   _popupScheduled = false;
                 },
                 child: const Text('Later'),
               ),
               FilledButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
                   _popupScheduled = false;
-                  _onNavChanged(4);
+                  unawaited(
+                    Navigator.of(context)
+                        .pushNamed(AppRoutes.patientNotifications)
+                        .then((_) {
+                      _refreshUnreadUpdates();
+                      _refreshNotificationsUnread();
+                    }),
+                  );
                 },
                 child: const Text('View Updates'),
               ),
@@ -270,9 +292,10 @@ class _PatientDashboardShellPageState extends State<PatientDashboardShellPage>
     final title = notification['title']?.toString().trim().isNotEmpty == true
         ? notification['title']!.toString()
         : 'System announcement';
-    final message = notification['message']?.toString().trim().isNotEmpty == true
-        ? notification['message']!.toString()
-        : 'You have a new system notification.';
+    final message =
+        notification['message']?.toString().trim().isNotEmpty == true
+            ? notification['message']!.toString()
+            : 'You have a new system notification.';
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
