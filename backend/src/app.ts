@@ -1,6 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
-import limiter from "./config/ratelimiter";
 import router from "./routes";
 import errorHandler from "./middlewares/errorHandler";
 import { ApiError, ApiResponse } from "./utils";
@@ -65,7 +64,6 @@ app.use(morgan(':method :safe-url :status :res[content-length] - :response-time 
 }));
 
 app.use(helmet());
-app.use(limiter);
 
 app.use(cors({
   origin: "*",
