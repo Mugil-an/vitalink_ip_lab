@@ -269,12 +269,12 @@ class PatientRepository {
     final response = await _apiClient.get('$_patientBasePath/reports');
     final report = response['report'];
     if (report is! Map<String, dynamic>) {
-      return {'value': 0.0, 'date': 'N/A'};
+      return {'value': 0.0, 'date': 'N/A', 'isCritical': false, 'hasData': false};
     }
 
     final inrHistory = report['inr_history'];
     if (inrHistory is! List || inrHistory.isEmpty) {
-      return {'value': 0.0, 'date': 'N/A'};
+      return {'value': 0.0, 'date': 'N/A', 'isCritical': false, 'hasData': false};
     }
 
     Map<String, dynamic>? latestEntry;
@@ -298,12 +298,14 @@ class PatientRepository {
     }
 
     if (latestEntry == null) {
-      return {'value': 0.0, 'date': 'N/A'};
+      return {'value': 0.0, 'date': 'N/A', 'isCritical': false, 'hasData': false};
     }
 
     return {
       'value': _toDouble(latestEntry['inr_value']),
       'date': formatDate(latestEntry['test_date']),
+      'isCritical': latestEntry['is_critical'] == true,
+      'hasData': true,
     };
   }
 

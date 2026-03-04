@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tanstack_query/flutter_tanstack_query.dart';
 import 'package:frontend/core/di/app_dependencies.dart';
+import 'package:frontend/core/di/theme.dart';
 import 'package:frontend/core/query/doctor_query_keys.dart';
 import 'package:frontend/core/query/patient_query_keys.dart';
 
@@ -23,7 +24,19 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final pageTop = isDark
+        ? const Color(0xFF1B1E28)
+        : Color.alphaBlend(
+            AppColors.primary.withValues(alpha: 0.10),
+            Colors.white,
+          );
+    final pageBottom = isDark
+        ? const Color(0xFF12141C)
+        : Color.alphaBlend(
+            AppColors.secondary.withValues(alpha: 0.06),
+            Colors.white,
+          );
 
     return UseQuery<Map<String, dynamic>>(
       options: QueryOptions<Map<String, dynamic>>(
@@ -48,9 +61,12 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
             : notifications;
 
         return Scaffold(
-          backgroundColor: scheme.surface,
+          backgroundColor: pageBottom,
           appBar: AppBar(
-            title: const Text('Notification Center'),
+            backgroundColor: pageTop,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: const Text('Notifications'),
             actions: [
               TextButton.icon(
                 onPressed: (!_markAllLoading && unreadCount > 0)
@@ -70,62 +86,73 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
               const SizedBox(width: 8),
             ],
           ),
-          body: query.isLoading
-              ? const _LoadingState()
-              : query.isError
-                  ? _ErrorState(
-                      message: query.error.toString(),
-                      onRetry: () => query.refetch(),
-                    )
-                  : notifications.isEmpty
-                      ? const _EmptyState(isFiltered: false)
-                      : RefreshIndicator(
-                          onRefresh: () async => query.refetch(),
-                          child: CustomScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            slivers: [
-                              SliverToBoxAdapter(
-                                child: _NotificationSummaryCard(
-                                  totalCount: notifications.length,
-                                  unreadCount: unreadCount,
-                                  showUnreadOnly: _showUnreadOnly,
-                                  onToggleFilter: (value) {
-                                    setState(() => _showUnreadOnly = value);
-                                  },
-                                ),
-                              ),
-                              if (filteredNotifications.isEmpty)
-                                const SliverFillRemaining(
-                                  hasScrollBody: false,
-                                  child: _EmptyState(isFiltered: true),
-                                )
-                              else
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16,
-                                    6,
-                                    16,
-                                    20,
-                                  ),
-                                  sliver: SliverList.separated(
-                                    itemCount: filteredNotifications.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(height: 12),
-                                    itemBuilder: (context, index) {
-                                      final item = filteredNotifications[index];
-                                      return _NotificationTile(
-                                        item: item,
-                                        onTap: () => _markSingleAsReadIfNeeded(
-                                          item,
-                                          query.refetch,
-                                        ),
-                                      );
+          body: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [pageTop, pageBottom],
+              ),
+            ),
+            child: query.isLoading
+                ? const _LoadingState()
+                : query.isError
+                    ? _ErrorState(
+                        message: query.error.toString(),
+                        onRetry: () => query.refetch(),
+                      )
+                    : notifications.isEmpty
+                        ? const _EmptyState(isFiltered: false)
+                        : RefreshIndicator(
+                            onRefresh: () async => query.refetch(),
+                            child: CustomScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              slivers: [
+                                SliverToBoxAdapter(
+                                  child: _NotificationSummaryCard(
+                                    totalCount: notifications.length,
+                                    unreadCount: unreadCount,
+                                    showUnreadOnly: _showUnreadOnly,
+                                    onToggleFilter: (value) {
+                                      setState(() => _showUnreadOnly = value);
                                     },
                                   ),
                                 ),
-                            ],
+                                if (filteredNotifications.isEmpty)
+                                  const SliverFillRemaining(
+                                    hasScrollBody: false,
+                                    child: _EmptyState(isFiltered: true),
+                                  )
+                                else
+                                  SliverPadding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      6,
+                                      16,
+                                      20,
+                                    ),
+                                    sliver: SliverList.separated(
+                                      itemCount: filteredNotifications.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: 12),
+                                      itemBuilder: (context, index) {
+                                        final item =
+                                            filteredNotifications[index];
+                                        return _NotificationTile(
+                                          item: item,
+                                          onTap: () =>
+                                              _markSingleAsReadIfNeeded(
+                                            item,
+                                            query.refetch,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
+          ),
         );
       },
     );
@@ -203,12 +230,12 @@ class _NotificationTile extends StatelessWidget {
           gradient: LinearGradient(
             colors: isRead
                 ? [
-                    scheme.surfaceContainerLowest,
-                    scheme.surfaceContainerLow,
+                    scheme.surface,
+                    scheme.surface,
                   ]
                 : [
-                    priorityVisual.color.withValues(alpha: 0.14),
-                    scheme.surfaceContainerLowest,
+                    scheme.primary.withValues(alpha: 0.08),
+                    scheme.surface,
                   ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -277,13 +304,13 @@ class _NotificationTile extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
+                      color: scheme.secondaryContainer,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       'NEW',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onPrimaryContainer,
+                        color: scheme.onSecondaryContainer,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                       ),
@@ -379,8 +406,8 @@ class _NotificationSummaryCard extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              scheme.primaryContainer.withValues(alpha: 0.9),
-              scheme.tertiaryContainer.withValues(alpha: 0.75),
+              AppColors.primary.withValues(alpha: 0.2),
+              AppColors.secondary.withValues(alpha: 0.2),
             ],
           ),
           boxShadow: [
@@ -398,7 +425,7 @@ class _NotificationSummaryCard extends StatelessWidget {
             Text(
               'Inbox',
               style: theme.textTheme.titleLarge?.copyWith(
-                color: scheme.onPrimaryContainer,
+                color: scheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -508,7 +535,7 @@ class _FilterPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: selected
-              ? scheme.onPrimaryContainer
+              ? scheme.primary
               : scheme.surface.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(999),
         ),
@@ -516,7 +543,7 @@ class _FilterPill extends StatelessWidget {
           child: Text(
             label,
             style: theme.textTheme.labelLarge?.copyWith(
-              color: selected ? scheme.primaryContainer : scheme.onSurface,
+              color: selected ? scheme.onPrimary : scheme.onSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -559,7 +586,7 @@ class _EmptyState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: scheme.primaryContainer.withValues(alpha: 0.6),
+                color: scheme.primary.withValues(alpha: 0.14),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -672,11 +699,11 @@ _PriorityVisual _priorityVisual(String priority, ColorScheme scheme) {
         icon: Icons.notification_important_rounded,
       ),
     'HIGH' => _PriorityVisual(
-        color: const Color(0xFFE36A1E),
+        color: AppColors.warning,
         icon: Icons.priority_high_rounded,
       ),
     'LOW' => _PriorityVisual(
-        color: const Color(0xFF1F8D66),
+        color: AppColors.success,
         icon: Icons.task_alt_rounded,
       ),
     _ => _PriorityVisual(

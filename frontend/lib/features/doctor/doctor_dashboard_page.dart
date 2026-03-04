@@ -101,8 +101,7 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
         .where((p) =>
             p.name.toLowerCase().contains(query) ||
             (p.opNumber ?? '').toLowerCase().contains(query) ||
-            (p.condition ?? '').toLowerCase().contains(query) ||
-            (p.accountStatus ?? '').toLowerCase().contains(query))
+            (p.condition ?? '').toLowerCase().contains(query))
         .toList();
   }
 
@@ -412,7 +411,7 @@ class _TableView extends StatelessWidget {
                   DataCell(Text(entry.value.age?.toString() ?? '-')),
                   DataCell(Text(entry.value.gender ?? '-')),
                   DataCell(
-                    Text(entry.value.condition ?? entry.value.accountStatus ?? '-'),
+                    Text(entry.value.condition ?? 'Not Available'),
                   ),
                   DataCell(
                     TextButton(
@@ -517,7 +516,7 @@ class _PatientCard extends StatelessWidget {
         Text('Age: ${patient.age ?? '-'}, Gender: ${patient.gender ?? '-'}',
             style: const TextStyle(color: Colors.black54, fontSize: 12)),
         Text(
-          'Condition: ${patient.condition ?? patient.accountStatus ?? 'Not specified'}',
+          'Condition: ${patient.condition ?? 'Not Available'}',
           style: const TextStyle(color: Colors.black54, fontSize: 12),
         ),
         const SizedBox(height: 10),

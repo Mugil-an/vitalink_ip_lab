@@ -45,6 +45,8 @@ class _PatientPageState extends State<PatientPage> {
             'prescriptions': prescriptions,
             'latestINR': latestINRData['value'],
             'latestINRDate': latestINRData['date'],
+            'latestINRIsCritical': latestINRData['isCritical'],
+            'latestINRHasData': latestINRData['hasData'],
             'missedDoses': missedDoses,
           };
         },
@@ -67,6 +69,22 @@ class _PatientPageState extends State<PatientPage> {
         final latestINR = (data['latestINR'] as num?)?.toDouble() ?? 0.0;
         final latestINRDate = data['latestINRDate']?.toString() ?? 'N/A';
         final history = data['history'] as List;
+        final latestInrHasData = data['latestINRHasData'] == true;
+        final patientCondition = latestInrHasData
+            ? ((data['latestINRIsCritical'] == true)
+                ? 'Critical'
+                : 'Not Critical')
+            : 'Not Available';
+        final patientConditionColor = patientCondition == 'Critical'
+            ? const Color(0xFFB91C1C)
+            : patientCondition == 'Not Critical'
+                ? const Color(0xFF166534)
+                : const Color(0xFF374151);
+        final patientConditionBg = patientCondition == 'Critical'
+            ? const Color(0xFFFEE2E2)
+            : patientCondition == 'Not Critical'
+                ? const Color(0xFFDCFCE7)
+                : const Color(0xFFF3F4F6);
 
         return _buildPageContainer(
           bodyDecoration: const BoxDecoration(
@@ -126,6 +144,24 @@ class _PatientPageState extends State<PatientPage> {
                             fontSize: 16,
                             color: Colors.grey[700],
                             fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: patientConditionBg,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Condition: $patientCondition',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: patientConditionColor,
+                              letterSpacing: 0.2,
+                            ),
                           ),
                         ),
                         const Padding(
