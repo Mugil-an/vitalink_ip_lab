@@ -162,9 +162,14 @@ class _DoctorUpdatesCard extends StatelessWidget {
 
   final List<Map<String, dynamic>> updates;
   final int unreadCount;
+  static const int _maxVisibleUpdates = 3;
+  static const double _updateTileHeight = 112;
 
   @override
   Widget build(BuildContext context) {
+    final visibleCount = updates.length.clamp(1, _maxVisibleUpdates);
+    final listHeight = (visibleCount * _updateTileHeight) + ((visibleCount - 1) * 10);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -210,40 +215,67 @@ class _DoctorUpdatesCard extends StatelessWidget {
               style: TextStyle(color: Color(0xFF6B7280)),
             )
           else
-            ...updates.map((event) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: event['isRead'] == true
-                          ? const Color(0xFFF9FAFB)
-                          : const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          event['title']?.toString() ?? 'Doctor update',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          event['message']?.toString() ?? '',
-                          style: const TextStyle(
-                              color: Color(0xFF374151), fontSize: 13),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          event['createdAt']?.toString() ?? '',
-                          style: const TextStyle(
-                              color: Color(0xFF9CA3AF), fontSize: 12),
-                        ),
-                      ],
-                    ),
+            SizedBox(
+              height: listHeight,
+              child: Scrollbar(
+                thumbVisibility: updates.length > _maxVisibleUpdates,
+                child: ListView.separated(
+                  primary: false,
+                  itemCount: updates.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) => _DoctorUpdateTile(
+                    event: updates[index],
                   ),
-                )),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DoctorUpdateTile extends StatelessWidget {
+  const _DoctorUpdateTile({required this.event});
+
+  final Map<String, dynamic> event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 112),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: event['isRead'] == true
+            ? const Color(0xFFF9FAFB)
+            : const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            event['title']?.toString() ?? 'Doctor update',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            event['message']?.toString() ?? '',
+            style: const TextStyle(color: Color(0xFF374151), fontSize: 13),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            event['createdAt']?.toString() ?? '',
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
