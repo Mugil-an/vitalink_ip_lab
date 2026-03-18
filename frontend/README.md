@@ -1,4 +1,11 @@
 flutter run -d web-server --web-hostname 127.0.0.1 --web-port 7357
+
+
+flutter build web
+  cd build/web
+  vercel --prod
+
+  
 # frontend
 
 A new Flutter project.

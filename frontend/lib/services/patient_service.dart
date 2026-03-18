@@ -8,7 +8,7 @@ class PatientService {
       'https://vitalink-ip-lab-1.onrender.com/api/patient';
   static const storage = FlutterSecureStorage();
 
-  static String _endpoint(String path) => '$_patientBasePath$path';
+  static String _endpoint(String path) => path;
 
   static final Dio _dio = Dio(
     BaseOptions(
