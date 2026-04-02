@@ -8,16 +8,20 @@ import xgboost as xgb
 
 
 BASE_DIR = Path(__file__).resolve().parent
+BEST_MODEL_PATH = BASE_DIR / "models" / "best_warfarin_model.joblib"
 MODEL_PATH = BASE_DIR / "models" / "warfarin_model.json"
 PREPROCESSOR_PATH = BASE_DIR / "models" / "preprocessor.joblib"
 
 
 def load_artifacts():
-    """Load baseline model and preprocessor artifacts."""
+    """Load the tuned pipeline when available, otherwise fall back to baseline artifacts."""
+    if BEST_MODEL_PATH.exists():
+        return joblib.load(BEST_MODEL_PATH), None
+
     if not MODEL_PATH.exists() or not PREPROCESSOR_PATH.exists():
         print(
-            "Error: Missing baseline artifacts. Run train_baseline.py first to generate "
-            "models/warfarin_model.json and models/preprocessor.joblib."
+            "Error: Missing model artifacts. Run tune_warfarin_models.py for the tuned pipeline "
+            "or train_baseline.py for the legacy baseline artifacts."
         )
         sys.exit(1)
 
@@ -30,8 +34,11 @@ def load_artifacts():
 def predict_warfarin_dose(patient_data: dict, model, preprocessor) -> float:
     """Predict weekly warfarin dose in mg/week."""
     frame = pd.DataFrame([patient_data])
-    transformed = preprocessor.transform(frame)
-    dose_mg_week = float(model.predict(transformed)[0])
+    if preprocessor is None:
+        dose_mg_week = float(model.predict(frame)[0])
+    else:
+        transformed = preprocessor.transform(frame)
+        dose_mg_week = float(model.predict(transformed)[0])
     return max(dose_mg_week, 0.0)
 
 if __name__ == "__main__":
@@ -70,4 +77,3 @@ if __name__ == "__main__":
         print(f"\n=> Predicted Therapeutic Dose: {dose:.2f} mg/week")
     except Exception as e:
         print(f"\nError during prediction: {e}")
-
