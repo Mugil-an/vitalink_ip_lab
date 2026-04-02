@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -15,78 +16,126 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-print("1. Loading Data...")
-file_path = './ml_pipeline/data/iwpc_warfarin.xls'
-df = pd.read_excel(file_path, sheet_name='Subject Data')
+file_path = os.getenv("WARFARIN_TRAIN_DATA", './data/iwpc_warfarin.xls')
 
-# 2. Filtering target
-print("2. Preprocessing Data...")
-df = df.dropna(subset=['Therapeutic Dose of Warfarin'])
+def load_dataframe(path):
+    ext = os.path.splitext(path)[1].lower()
+    if ext in ['.xls', '.xlsx']:
+        try:
+            return pd.read_excel(path, sheet_name='Subject Data')
+        except Exception:
+            return pd.read_excel(path)
+    if ext == '.csv':
+        return pd.read_csv(path)
+    raise ValueError(f"Unsupported file extension: {ext}")
 
-# Target Variable (Square root transformation)
-y = np.sqrt(df['Therapeutic Dose of Warfarin'])
+df = load_dataframe(file_path)
 
 # Feature Engineering
 def map_age(age_str):
-    if pd.isna(age_str): return np.nan
+    if pd.isna(age_str):
+        return np.nan
     age_str = str(age_str).strip()
     mapping = {
-        "10 - 19": 1.5, "20 - 29": 2.5, "30 - 39": 3.5, 
-        "40 - 49": 4.5, "50 - 59": 5.5, "60 - 69": 6.5, 
+        "10 - 19": 1.5, "20 - 29": 2.5, "30 - 39": 3.5,
+        "40 - 49": 4.5, "50 - 59": 5.5, "60 - 69": 6.5,
         "70 - 79": 7.5, "80 - 89": 8.5, "90+": 9.5
     }
-    return mapping.get(age_str, np.nan)
+    if age_str in mapping:
+        return mapping[age_str]
+    try:
+        return float(age_str)
+    except Exception:
+        return np.nan
 
-df['Age_Num'] = df['Age'].apply(map_age)
+print("2. Preprocessing Data...")
 
-# Race Consolidation
-def map_race(race):
-    if pd.isna(race): return 'Unknown'
-    race = str(race)
-    if 'White' in race: return 'White'
-    if 'Black' in race or 'African' in race: return 'Black'
-    if 'Asian' in race: return 'Asian'
-    return 'Other'
+if 'Therapeutic Dose of Warfarin' in df.columns:
+    # IWPC schema
+    df = df.dropna(subset=['Therapeutic Dose of Warfarin'])
+    y = pd.to_numeric(df['Therapeutic Dose of Warfarin'], errors='coerce')
 
-df['Race_Group'] = df['Race (Reported)'].apply(map_race)
+    race_col = 'Race (Reported)' if 'Race (Reported)' in df.columns else ('Race' if 'Race' in df.columns else None)
+    if race_col is None:
+        raise ValueError("Could not find race column. Expected 'Race (Reported)' or 'Race'.")
 
-# Medications and Clinical
-df['Amiodarone'] = df['Amiodarone (Cordarone)'].fillna(0.0)
+    df['Age_Num'] = df['Age'].apply(map_age)
 
-# Enzyme Inducer
-enzyme_cols = ['Carbamazepine (Tegretol)', 'Phenytoin (Dilantin)', 'Rifampin or Rifampicin']
-for col in enzyme_cols:
-    df[col] = df[col].fillna(0.0)
-df['Enzyme_Inducer'] = df[enzyme_cols].max(axis=1)
+    def map_race(race):
+        if pd.isna(race):
+            return 'Unknown'
+        race = str(race)
+        if 'White' in race:
+            return 'White'
+        if 'Black' in race or 'African' in race:
+            return 'Black'
+        if 'Asian' in race:
+            return 'Asian'
+        return 'Other'
 
-# Genetics
-df['CYP2C9'] = df['Cyp2C9 genotypes'].fillna('Unknown')
-# Consolidate rare CYP2C9 variants
-common_cyp = ['*1/*1', '*1/*2', '*1/*3', '*2/*2', '*2/*3', '*3/*3']
-df['CYP2C9'] = df['CYP2C9'].apply(lambda x: x if x in common_cyp else 'Other/Unknown')
+    df['Race_Group'] = df[race_col].apply(map_race)
 
-df['VKORC1'] = df['VKORC1 -1639 consensus'].fillna('Unknown')
+    amiodarone_col = 'Amiodarone (Cordarone)' if 'Amiodarone (Cordarone)' in df.columns else ('Amiodarone' if 'Amiodarone' in df.columns else None)
+    if amiodarone_col is None:
+        df['Amiodarone'] = 0.0
+    else:
+        df['Amiodarone'] = pd.to_numeric(df[amiodarone_col], errors='coerce').fillna(0.0)
 
-# Subset columns for modeling
-clinical_cols = ['Age_Num', 'Height (cm)', 'Weight (kg)', 'Amiodarone', 'Enzyme_Inducer', 'Race_Group']
-genetic_cols = ['CYP2C9', 'VKORC1']
-features = clinical_cols + genetic_cols
+    enzyme_cols = ['Carbamazepine (Tegretol)', 'Phenytoin (Dilantin)', 'Rifampin or Rifampicin']
+    existing_enzyme_cols = [col for col in enzyme_cols if col in df.columns]
+    if existing_enzyme_cols:
+        for col in existing_enzyme_cols:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
+        df['Enzyme_Inducer'] = df[existing_enzyme_cols].max(axis=1)
+    else:
+        df['Enzyme_Inducer'] = 0.0
 
-X = df[features]
+    df['CYP2C9'] = df['Cyp2C9 genotypes'].fillna('Unknown')
+    common_cyp = ['*1/*1', '*1/*2', '*1/*3', '*2/*2', '*2/*3', '*3/*3']
+    df['CYP2C9'] = df['CYP2C9'].apply(lambda x: x if x in common_cyp else 'Other/Unknown')
+
+    df['VKORC1'] = df['VKORC1 -1639 consensus'].fillna('Unknown')
+
+    num_features = ['Age_Num', 'Height (cm)', 'Weight (kg)', 'Amiodarone', 'Enzyme_Inducer']
+    cat_features_clinical = ['Race_Group']
+    cat_features_genetic = ['CYP2C9', 'VKORC1']
+
+    clinical_cols = ['Age_Num', 'Height (cm)', 'Weight (kg)', 'Amiodarone', 'Enzyme_Inducer', 'Race_Group']
+    genetic_cols = ['CYP2C9', 'VKORC1']
+    features = clinical_cols + genetic_cols
+    X = df[features]
+
+elif 'WarfarinDose' in df.columns:
+    # Synthetic schema
+    df = df.dropna(subset=['WarfarinDose'])
+    y = pd.to_numeric(df['WarfarinDose'], errors='coerce')
+
+    for col in ['Age', 'Height', 'Weight', 'Target_INR', 'Renal_Function']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    for col in ['Gender', 'Amiodarone', 'Aspirin', 'Smoker', 'CYP2C9', 'VKORC1', 'CYP4F2']:
+        if col not in df.columns:
+            df[col] = 'Unknown'
+        df[col] = df[col].astype(str).fillna('Unknown')
+
+    num_features = ['Age', 'Height', 'Weight', 'Target_INR', 'Renal_Function']
+    cat_features_clinical = ['Gender', 'Amiodarone', 'Aspirin', 'Smoker']
+    cat_features_genetic = ['CYP2C9', 'VKORC1', 'CYP4F2']
+    features = num_features + cat_features_clinical + cat_features_genetic
+    X = df[features]
+
+else:
+    raise ValueError(
+        "Unsupported dataset schema. Expected either IWPC columns with 'Therapeutic Dose of Warfarin' "
+        "or synthetic columns with 'WarfarinDose'."
+    )
 
 # Train-Test Split
 print("3. Splitting Data...")
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Save original dose for evaluation (we will square the predictions)
-y_test_true_dose = np.square(y_test)
+y_test_true_dose = y_test
 
 # Pipelines
-# 1. Clinical Imputers
-num_features = ['Age_Num', 'Height (cm)', 'Weight (kg)', 'Amiodarone', 'Enzyme_Inducer']
-cat_features_clinical = ['Race_Group']
-cat_features_genetic = ['CYP2C9', 'VKORC1']
-
 num_transformer = Pipeline(steps=[
     ('imputer', KNNImputer(n_neighbors=5)),
     ('scaler', StandardScaler())
@@ -97,21 +146,18 @@ cat_transformer = Pipeline(steps=[
     ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
 ])
 
-# Clinical Preprocessor (No Genetics)
 preprocessor_clinical = ColumnTransformer(
     transformers=[
         ('num', num_transformer, num_features),
         ('cat', cat_transformer, cat_features_clinical)
     ])
 
-# Pharmacogenetic Preprocessor (Includes Genetics)
 preprocessor_pgx = ColumnTransformer(
     transformers=[
         ('num', num_transformer, num_features),
         ('cat', cat_transformer, cat_features_clinical + cat_features_genetic)
     ])
 
-# Define Models
 models = {
     "1. Clinical Baseline (Linear)": Pipeline(steps=[('preprocessor', preprocessor_clinical), ('regressor', LinearRegression())]),
     "2. Pharmacogenetic Baseline (Ridge)": Pipeline(steps=[('preprocessor', preprocessor_pgx), ('regressor', Ridge(alpha=1.0))]),
@@ -121,12 +167,9 @@ models = {
     "6. Neural Network (MLP)": Pipeline(steps=[('preprocessor', preprocessor_pgx), ('regressor', MLPRegressor(hidden_layer_sizes=(64, 32), activation='relu', max_iter=500, random_state=42))])
 }
 
-# Training and Evaluation Function
 def evaluate_model(name, model, X_tr, y_tr, X_te, y_te_true):
     model.fit(X_tr, y_tr)
-    # Predict in square root scale, then square to get mg/week
-    y_pred_sqrt = model.predict(X_te)
-    y_pred_dose = np.square(np.maximum(y_pred_sqrt, 0)) # Ensure no negative predictions before squaring
+    y_pred_dose = np.maximum(model.predict(X_te), 0)
     
     mae = mean_absolute_error(y_te_true, y_pred_dose)
     rmse = np.sqrt(mean_squared_error(y_te_true, y_pred_dose))
@@ -151,7 +194,7 @@ for name, pipeline in models.items():
 print("\nTraining Complete!")
 
 import joblib
-# Save the best performing model (Pharmacogenetic Baseline)
 best_model = trained_models["2. Pharmacogenetic Baseline (Ridge)"]
-joblib.dump(best_model, './ml_pipeline/models/best_warfarin_model.joblib')
-print("\nSaved the best model to ./ml_pipeline/models/best_warfarin_model.joblib")
+os.makedirs("models", exist_ok=True)
+joblib.dump(best_model, './models/best_warfarin_model.joblib')
+print("\nSaved the best model to ./models/best_warfarin_model.joblib")

@@ -1,45 +1,41 @@
-import joblib
-import pandas as pd
-import numpy as np
 import argparse
 import sys
+from pathlib import Path
 
-# Load the model once
-MODEL_PATH = './ml_pipeline/models/best_warfarin_model.joblib'
-try:
-    model = joblib.load(MODEL_PATH)
-except FileNotFoundError:
-    print(f"Error: Could not find model at {MODEL_PATH}. Make sure to run train_warfarin_models.py first.")
-    sys.exit(1)
+import joblib
+import pandas as pd
+import xgboost as xgb
 
-def predict_warfarin_dose(patient_data: dict) -> float:
-    """
-    Predicts the required Warfarin dosage (mg/week) for a patient.
-    
-    Expected keys in patient_data:
-    - 'Age_Num': Numeric (e.g., 6.5 for "60-69", 4.5 for "40-49")
-    - 'Height (cm)': Numeric
-    - 'Weight (kg)': Numeric
-    - 'Amiodarone': 1.0 (taking) or 0.0 (not taking)
-    - 'Enzyme_Inducer': 1.0 (taking Carbamazepine, Phenytoin, or Rifampin) or 0.0
-    - 'Race_Group': String ('White', 'Black', 'Asian', or 'Other')
-    - 'CYP2C9': String ('*1/*1', '*1/*2', '*1/*3', '*2/*2', '*2/*3', '*3/*3', or 'Unknown')
-    - 'VKORC1': String ('A/A', 'A/G', 'G/G', or 'Unknown')
-    """
-    
-    # Convert single patient dict to a DataFrame
-    df = pd.DataFrame([patient_data])
-    
-    # The model predicts the square root of the dose
-    sqrt_dose_pred = model.predict(df)[0]
-    
-    # Square it to get mg/week
-    dose_mg_week = np.square(np.maximum(sqrt_dose_pred, 0))
-    
-    return dose_mg_week
+
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR / "models" / "warfarin_model.json"
+PREPROCESSOR_PATH = BASE_DIR / "models" / "preprocessor.joblib"
+
+
+def load_artifacts():
+    """Load baseline model and preprocessor artifacts."""
+    if not MODEL_PATH.exists() or not PREPROCESSOR_PATH.exists():
+        print(
+            "Error: Missing baseline artifacts. Run train_baseline.py first to generate "
+            "models/warfarin_model.json and models/preprocessor.joblib."
+        )
+        sys.exit(1)
+
+    model = xgb.XGBRegressor()
+    model.load_model(MODEL_PATH)
+    preprocessor = joblib.load(PREPROCESSOR_PATH)
+    return model, preprocessor
+
+
+def predict_warfarin_dose(patient_data: dict, model, preprocessor) -> float:
+    """Predict weekly warfarin dose in mg/week."""
+    frame = pd.DataFrame([patient_data])
+    transformed = preprocessor.transform(frame)
+    dose_mg_week = float(model.predict(transformed)[0])
+    return max(dose_mg_week, 0.0)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Predict Warfarin Dose (mg/week) based on patient data.")
+    parser = argparse.ArgumentParser(description="Predict warfarin dose (mg/week) from patient features.")
     
     parser.add_argument('--age', type=float, required=True, help="Decade midpoint (e.g. 6.5 for 60-69)")
     parser.add_argument('--height', type=float, required=True, help="Height in cm")
@@ -63,12 +59,14 @@ if __name__ == "__main__":
         'VKORC1': args.vkorc1
     }
     
+    model, preprocessor = load_artifacts()
+
     print("\n--- Patient Profile ---")
     for k, v in patient.items():
         print(f"{k}: {v}")
         
     try:
-        dose = predict_warfarin_dose(patient)
+        dose = predict_warfarin_dose(patient, model, preprocessor)
         print(f"\n=> Predicted Therapeutic Dose: {dose:.2f} mg/week")
     except Exception as e:
         print(f"\nError during prediction: {e}")

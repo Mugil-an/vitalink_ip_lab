@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import joblib
+from pathlib import Path
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -13,12 +14,15 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
+BASE_DIR = Path(__file__).resolve().parent
+
 print("1. Loading and Preprocessing Data...")
-file_path = './ml_pipeline/data/iwpc_warfarin.xls'
+file_path = BASE_DIR / 'data' / 'iwpc_warfarin.xls'
 df = pd.read_excel(file_path, sheet_name='Subject Data')
 df = df.dropna(subset=['Therapeutic Dose of Warfarin'])
 
-y = np.sqrt(df['Therapeutic Dose of Warfarin'])
+y = pd.to_numeric(df['Therapeutic Dose of Warfarin'], errors='coerce')
+y = y.fillna(y.median())
 
 def map_age(age_str):
     if pd.isna(age_str): return np.nan
@@ -58,7 +62,7 @@ X = df[features]
 
 print("2. Splitting Data...")
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-y_test_true_dose = np.square(y_test)
+y_test_true_dose = y_test
 
 # Pipelines
 num_features = ['Age_Num', 'Height (cm)', 'Weight (kg)', 'Amiodarone', 'Enzyme_Inducer']
@@ -101,8 +105,7 @@ lgbm_param_grid = {
 }
 
 def evaluate_model(name, model, X_te, y_te_true):
-    y_pred_sqrt = model.predict(X_te)
-    y_pred_dose = np.square(np.maximum(y_pred_sqrt, 0))
+    y_pred_dose = np.maximum(model.predict(X_te), 0)
     mae = mean_absolute_error(y_te_true, y_pred_dose)
     rmse = np.sqrt(mean_squared_error(y_te_true, y_pred_dose))
     r2 = r2_score(y_te_true, y_pred_dose)
@@ -131,7 +134,7 @@ lgbm_r2 = evaluate_model("Tuned LightGBM", lgbm_search.best_estimator_, X_test, 
 # Load existing ridge model to compare
 print("\n5. Comparing with Baseline (Ridge)...")
 try:
-    ridge_model = joblib.load('./ml_pipeline/models/best_warfarin_model.joblib')
+    ridge_model = joblib.load(BASE_DIR / 'models' / 'best_warfarin_model.joblib')
     ridge_r2 = evaluate_model("Baseline (Ridge)", ridge_model, X_test, y_test_true_dose)
 except Exception as e:
     print("Could not load Ridge model.")
@@ -141,10 +144,10 @@ except Exception as e:
 best_r2 = max(xgb_r2, lgbm_r2, ridge_r2)
 if best_r2 == xgb_r2:
     print("\n[RESULT] Tuned XGBoost is the new best model!")
-    joblib.dump(xgb_search.best_estimator_, './ml_pipeline/models/best_warfarin_model.joblib')
+    joblib.dump(xgb_search.best_estimator_, BASE_DIR / 'models' / 'best_warfarin_model.joblib')
 elif best_r2 == lgbm_r2:
     print("\n[RESULT] Tuned LightGBM is the new best model!")
-    joblib.dump(lgbm_search.best_estimator_, './ml_pipeline/models/best_warfarin_model.joblib')
+    joblib.dump(lgbm_search.best_estimator_, BASE_DIR / 'models' / 'best_warfarin_model.joblib')
 else:
     print("\n[RESULT] Baseline (Ridge) remains the best model!")
 

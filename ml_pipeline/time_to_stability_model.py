@@ -1,30 +1,32 @@
 import os
-import pandas as pd
 import numpy as np
 import xgboost as xgb
-import joblib
 import optuna
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-from preprocess import get_preprocessor
+from sklearn.base import clone
+from train_baseline import load_dataframe, preprocess_data
 
 def train_time_to_stability(data_path="data/warfarin_cohort.csv"):
-    df = pd.read_csv(data_path)
+    """Train a model to predict days required to reach stable INR dosing."""
+    df = load_dataframe(data_path)
     print("--- Time-to-Stability Prediction Framework ---")
-    print("WARNING: This model currently trains on dummy 'Days_To_Stable' target data.")
-    print("Wait for real patient tracking data before relying on it.")
+    print("Note: quality depends on validity of the Days_To_Stable target.")
+
+    if "Days_To_Stable" not in df.columns:
+        raise ValueError("Missing Days_To_Stable column in training data.")
     
-    X = df.drop(columns=['WarfarinDose', 'Days_To_Stable'], errors='ignore')
+    X, _, preprocessor, _, _ = preprocess_data(df)
     y_time = df['Days_To_Stable']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y_time, test_size=0.2, random_state=42)
     
-    preprocessor, num_f, cat_f = get_preprocessor()
-    X_train_processed = preprocessor.fit_transform(X_train)
-    X_test_processed = preprocessor.transform(X_test)
-    
     def objective(trial):
-        X_t, X_v, y_t, y_v = train_test_split(X_train_processed, y_train, test_size=0.2, random_state=42)
+        X_t, X_v, y_t, y_v = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+        fold_preprocessor = clone(preprocessor)
+        X_t_processed = fold_preprocessor.fit_transform(X_t)
+        X_v_processed = fold_preprocessor.transform(X_v)
+
         params = {
             'objective': 'reg:squarederror',
             'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -39,8 +41,8 @@ def train_time_to_stability(data_path="data/warfarin_cohort.csv"):
         }
         
         m = xgb.XGBRegressor(**params)
-        m.fit(X_t, y_t, eval_set=[(X_v, y_v)], verbose=False)
-        return np.sqrt(mean_squared_error(y_v, m.predict(X_v)))
+        m.fit(X_t_processed, y_t, eval_set=[(X_v_processed, y_v)], verbose=False)
+        return np.sqrt(mean_squared_error(y_v, m.predict(X_v_processed)))
 
     print("Running Optuna study for max 30 trials on Time-to-Stability...")
     optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -59,6 +61,9 @@ def train_time_to_stability(data_path="data/warfarin_cohort.csv"):
             
     print("\nTraining final XGBoost model with best params...")
     time_model = xgb.XGBRegressor(**best_params)
+
+    X_train_processed = preprocessor.fit_transform(X_train)
+    X_test_processed = preprocessor.transform(X_test)
     
     time_model.fit(
         X_train_processed, y_train,
@@ -82,7 +87,10 @@ def train_time_to_stability(data_path="data/warfarin_cohort.csv"):
     
     os.makedirs("models", exist_ok=True)
     time_model.get_booster().save_model("models/time_to_stable_model.json")
+    import joblib
+    joblib.dump(preprocessor, "models/time_to_stable_preprocessor.joblib")
     print("Saved placeholder model to models/time_to_stable_model.json")
+    print("Saved preprocessor to models/time_to_stable_preprocessor.joblib")
 
 if __name__ == "__main__":
     if not os.path.exists("data/warfarin_cohort.csv"):

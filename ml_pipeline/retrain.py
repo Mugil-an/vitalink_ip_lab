@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -6,11 +7,22 @@ import joblib
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from data_generator import generate_warfarin_data
 
-def continuous_retrain(new_patients=500, model_path="models/warfarin_model.json", preprocessor_path="models/preprocessor.joblib"):
+BASE_DIR = Path(__file__).resolve().parent
+
+
+def continuous_retrain(
+    new_patients=500,
+    model_path=BASE_DIR / "models" / "warfarin_model.json",
+    preprocessor_path=BASE_DIR / "models" / "preprocessor.joblib",
+):
+    """Incrementally retrain the baseline XGBoost model with new synthetic patients."""
     print(f"Acquiring new batch of {new_patients} patients for incremental training...")
-    df_new = generate_warfarin_data(new_patients, random_seed=456) # different seed for new data
+    df_new = generate_warfarin_data(new_patients, random_seed=456)
     
-    if not os.path.exists(model_path) or not os.path.exists(preprocessor_path):
+    model_path = Path(model_path)
+    preprocessor_path = Path(preprocessor_path)
+
+    if not model_path.exists() or not preprocessor_path.exists():
         print("Existing model or preprocessor not found! Run train_baseline.py first.")
         return
         
@@ -18,11 +30,9 @@ def continuous_retrain(new_patients=500, model_path="models/warfarin_model.json"
     y_new = df_new['WarfarinDose']
     
     preprocessor = joblib.load(preprocessor_path)
-    # We MUST use transform, not fit_transform, to keep feature alignment identical to baseline
     X_new_processed = preprocessor.transform(X_new)
     
     print("\n--- Pre-retraining Performance on New Data ---")
-    # Load old model to check its performance before training
     old_model = xgb.XGBRegressor()
     old_model.load_model(model_path)
     
@@ -30,17 +40,20 @@ def continuous_retrain(new_patients=500, model_path="models/warfarin_model.json"
     r2_before = r2_score(y_new, preds_before)
     rmse_before = np.sqrt(mean_squared_error(y_new, preds_before))
     print(f"Old Model R2 on new data: {r2_before:.4f}")
+    print(f"Old Model RMSE on new data: {rmse_before:.4f}")
     
     print("\n--- Retraining Model Incrementally ---")
-    # To retrain an sklearn API XGBoost model incrementally:
-    # 1. Initialize a new architecture
-    # 2. fit() with xgb_model=model_path
+    previous_params = old_model.get_xgb_params()
+    previous_params.update(
+        {
+            "objective": "reg:squarederror",
+            "n_estimators": 50,
+            "n_jobs": -1,
+        }
+    )
+
     incremental_model = xgb.XGBRegressor(
-        objective="reg:squarederror",
-        max_depth=7,
-        learning_rate=0.05, # Can lower learning rate for fine-tuning
-        n_estimators=50, # Just add 50 more trees
-        n_jobs=-1
+        **previous_params
     )
     
     incremental_model.fit(
@@ -53,13 +66,16 @@ def continuous_retrain(new_patients=500, model_path="models/warfarin_model.json"
     preds_after = incremental_model.predict(X_new_processed)
     r2_after = r2_score(y_new, preds_after)
     rmse_after = np.sqrt(mean_squared_error(y_new, preds_after))
+    mae_after = mean_absolute_error(y_new, preds_after)
     
     print(f"Retrained Model R2 on new data:   {r2_after:.4f}")
+    print(f"Retrained Model RMSE on new data: {rmse_after:.4f}")
+    print(f"Retrained Model MAE on new data:  {mae_after:.4f}")
     print(f"R2 Improved by:                   {(r2_after - r2_before):.4f}")
     
-    # Save the updated model
-    incremental_model.get_booster().save_model("models/warfarin_model_v2.json")
-    print("\nUpdated model saved to models/warfarin_model_v2.json")
+    output_path = BASE_DIR / "models" / "warfarin_model_v2.json"
+    incremental_model.get_booster().save_model(output_path)
+    print(f"\nUpdated model saved to {output_path}")
 
 if __name__ == "__main__":
     continuous_retrain()

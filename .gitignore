@@ -11,3 +11,5 @@ Thumbs.db
 deploy/vitalink-pem-key-pair.pem
 
 ml_pipeline/__pycache__
+
+ml_pipeline/.venv
