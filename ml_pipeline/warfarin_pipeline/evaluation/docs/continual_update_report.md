@@ -14,14 +14,14 @@ This report evaluates a continual-update workflow in which dose and time-to-stab
 
 | round | train_size | dose_rmse | dose_mae | dose_r2 | dose_within_20_pct | stability_rmse | stability_mae | stability_r2 | stability_within_7_days_pct |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Initial | 2500 | 13.5726 | 9.8458 | 0.0853 | 41.8333 | 7.5761 | 5.9861 | -0.5165 | 66.3333 |
-| Update 1 | 2800 | 13.4919 | 9.6518 | 0.0961 | 42.1667 | 5.9120 | 4.7204 | 0.0766 | 76.0000 |
-| Update 2 | 3100 | 13.5872 | 9.7366 | 0.0833 | 40.0000 | 5.7556 | 4.6189 | 0.1248 | 77.8333 |
-| Update 3 | 3400 | 13.1581 | 9.3591 | 0.1403 | 43.1667 | 5.6852 | 4.5376 | 0.1461 | 78.1667 |
+| Initial | 2500 | 12.0849 | 9.7378 | 0.2389 | 32.1667 | 7.6047 | 6.1413 | -0.4777 | 61.6667 |
+| Update 1 | 2800 | 12.2372 | 9.8028 | 0.2196 | 30.6667 | 5.8745 | 4.7051 | 0.1182 | 77.8333 |
+| Update 2 | 3100 | 12.9769 | 10.4062 | 0.1224 | 32.8333 | 5.9608 | 4.7556 | 0.0921 | 76.0000 |
+| Update 3 | 3400 | 12.7637 | 10.2223 | 0.1510 | 32.8333 | 5.9044 | 4.7114 | 0.1092 | 76.5000 |
 
 ## Main Findings
-- Dose model RMSE improved from `13.57` to `13.16` mg/week, while within-20% accuracy moved from `41.8%` to `43.2%`.
-- Stability model RMSE improved from `7.58` to `5.69` days, while within-7-days accuracy moved from `66.3%` to `78.2%`.
+- Dose model RMSE improved from `12.08` to `12.76` mg/week, while within-20% accuracy moved from `32.2%` to `32.8%`.
+- Stability model RMSE improved from `7.60` to `5.90` days, while within-7-days accuracy moved from `61.7%` to `76.5%`.
 - The experiment uses simulated covariate shift, so the interpretation is: continual retraining helps models adapt when the arriving patient mix differs from the original training cohort.
 
 ## Artifacts

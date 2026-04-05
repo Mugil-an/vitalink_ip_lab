@@ -14,15 +14,11 @@ import pandas as pd
 import seaborn as sns
 from lightgbm import LGBMRegressor
 from matplotlib import pyplot as plt
-from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBRegressor
 
 warnings.filterwarnings("ignore")
@@ -30,6 +26,11 @@ matplotlib.use("Agg")
 
 BASE_DIR = Path(__file__).resolve().parent
 PIPELINE_DIR = BASE_DIR.parent
+if str(PIPELINE_DIR) not in sys.path:
+    sys.path.insert(0, str(PIPELINE_DIR))
+
+from preprocessing import create_preprocessor, load_dataframe, prepare_iwpc_dose_dataset
+
 DATA_PATH = PIPELINE_DIR / "data" / "iwpc_warfarin.xls"
 IWPC_WORKBOOK_PATH = Path(os.getenv("IWPC_WORKBOOK_PATH", str(DATA_PATH)))
 OUTPUT_DIR = BASE_DIR / "output"
@@ -56,127 +57,15 @@ class FormulaContext:
 
 
 def load_dataset() -> pd.DataFrame:
-    return pd.read_excel(DATA_PATH, sheet_name="Subject Data")
+    return load_dataframe(DATA_PATH)
 
 
-def map_age_band_to_decades(value):
-    if pd.isna(value):
-        return np.nan
-    text = str(value).strip()
-    mapping = {
-        "10 - 19": 1.0,
-        "20 - 29": 2.0,
-        "30 - 39": 3.0,
-        "40 - 49": 4.0,
-        "50 - 59": 5.0,
-        "60 - 69": 6.0,
-        "70 - 79": 7.0,
-        "80 - 89": 8.0,
-        "90+": 9.0,
-    }
-    if text in mapping:
-        return mapping[text]
-    try:
-        numeric = float(text)
-        return numeric / 10.0
-    except Exception:
-        return np.nan
+def prepare_dataset(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list[str], list[str]]:
+    x, y, num_features, cat_features = prepare_iwpc_dose_dataset(df)
+    return x, y, num_features, cat_features
 
 
-def normalize_race(value: str) -> str:
-    if pd.isna(value):
-        return "Other/Unknown"
-    text = str(value).strip().lower()
-    if any(token in text for token in ["asian", "japanese", "chinese", "korean", "malay", "indian", "filipino"]):
-        return "Asian"
-    if any(token in text for token in ["black", "african"]):
-        return "Black"
-    if any(token in text for token in ["white", "caucasian"]):
-        return "White"
-    return "Other/Unknown"
-
-
-def normalize_cyp2c9(value: str) -> str:
-    common = {"*1/*1", "*1/*2", "*1/*3", "*2/*2", "*2/*3", "*3/*3"}
-    if pd.isna(value):
-        return "Unknown"
-    text = str(value).strip()
-    return text if text in common else "Unknown"
-
-
-def normalize_vkorc1(value: str) -> str:
-    if pd.isna(value):
-        return "Unknown"
-    text = str(value).strip()
-    return text if text in {"G/G", "A/G", "A/A"} else "Unknown"
-
-
-def prepare_dataset(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
-    work = df.dropna(subset=["Therapeutic Dose of Warfarin"]).copy()
-    work["Dose_mg_week"] = pd.to_numeric(work["Therapeutic Dose of Warfarin"], errors="coerce")
-    work = work.dropna(subset=["Dose_mg_week"]).copy()
-
-    work["Age_Decades"] = work["Age"].apply(map_age_band_to_decades)
-    work["Height_cm"] = pd.to_numeric(work["Height (cm)"], errors="coerce")
-    work["Weight_kg"] = pd.to_numeric(work["Weight (kg)"], errors="coerce")
-    work["Race_Group"] = work["Race (Reported)"].apply(normalize_race)
-
-    amiodarone = pd.to_numeric(work["Amiodarone (Cordarone)"], errors="coerce").fillna(0.0)
-    work["Amiodarone"] = (amiodarone > 0).astype(float)
-
-    inducer_cols = [
-        "Carbamazepine (Tegretol)",
-        "Phenytoin (Dilantin)",
-        "Rifampin or Rifampicin",
-    ]
-    for column in inducer_cols:
-        work[column] = pd.to_numeric(work[column], errors="coerce").fillna(0.0)
-    work["Enzyme_Inducer"] = (work[inducer_cols].max(axis=1) > 0).astype(float)
-
-    work["CYP2C9"] = work["Cyp2C9 genotypes"].apply(normalize_cyp2c9)
-    work["VKORC1"] = work["VKORC1 -1639 consensus"].apply(normalize_vkorc1)
-
-    features = work[
-        [
-            "Age_Decades",
-            "Height_cm",
-            "Weight_kg",
-            "Race_Group",
-            "Amiodarone",
-            "Enzyme_Inducer",
-            "CYP2C9",
-            "VKORC1",
-        ]
-    ].copy()
-    target = work["Dose_mg_week"].copy()
-    return features, target
-
-
-def build_preprocessor() -> ColumnTransformer:
-    numeric_features = ["Age_Decades", "Height_cm", "Weight_kg", "Amiodarone", "Enzyme_Inducer"]
-    categorical_features = ["Race_Group", "CYP2C9", "VKORC1"]
-
-    numeric_pipeline = Pipeline(
-        steps=[
-            ("imputer", KNNImputer(n_neighbors=5)),
-            ("scaler", StandardScaler()),
-        ]
-    )
-    categorical_pipeline = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="constant", fill_value="Unknown")),
-            ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-        ]
-    )
-    return ColumnTransformer(
-        transformers=[
-            ("num", numeric_pipeline, numeric_features),
-            ("cat", categorical_pipeline, categorical_features),
-        ]
-    )
-
-
-def build_models() -> dict[str, Pipeline]:
+def build_models(num_features: list[str], cat_features: list[str]) -> dict[str, Pipeline]:
     tuned_lgbm = LGBMRegressor(
         n_estimators=445,
         learning_rate=0.018218827946353038,
@@ -192,11 +81,11 @@ def build_models() -> dict[str, Pipeline]:
     )
     return {
         "Linear Regression": Pipeline(
-            steps=[("preprocessor", build_preprocessor()), ("regressor", LinearRegression())]
+            steps=[("preprocessor", create_preprocessor(num_features, cat_features)), ("regressor", LinearRegression())]
         ),
         "Random Forest": Pipeline(
             steps=[
-                ("preprocessor", build_preprocessor()),
+                ("preprocessor", create_preprocessor(num_features, cat_features)),
                 (
                     "regressor",
                     RandomForestRegressor(
@@ -210,7 +99,7 @@ def build_models() -> dict[str, Pipeline]:
         ),
         "XGBoost": Pipeline(
             steps=[
-                ("preprocessor", build_preprocessor()),
+                ("preprocessor", create_preprocessor(num_features, cat_features)),
                 (
                     "regressor",
                     XGBRegressor(
@@ -230,25 +119,8 @@ def build_models() -> dict[str, Pipeline]:
                 ),
             ]
         ),
-        "Neural Network": Pipeline(
-            steps=[
-                ("preprocessor", build_preprocessor()),
-                (
-                    "regressor",
-                    MLPRegressor(
-                        hidden_layer_sizes=(128, 64),
-                        activation="relu",
-                        alpha=0.001,
-                        learning_rate_init=0.001,
-                        max_iter=1000,
-                        early_stopping=True,
-                        random_state=RANDOM_STATE,
-                    ),
-                ),
-            ]
-        ),
-        "Our Model (Tuned LightGBM)": Pipeline(
-            steps=[("preprocessor", build_preprocessor()), ("regressor", tuned_lgbm)]
+        "LightGBM": Pipeline(
+            steps=[("preprocessor", create_preprocessor(num_features, cat_features)), ("regressor", tuned_lgbm)]
         ),
     }
 
@@ -265,16 +137,16 @@ def evaluate_predictions(y_true: pd.Series, y_pred: np.ndarray) -> dict[str, flo
 
 def make_formula_context(x_train: pd.DataFrame) -> FormulaContext:
     return FormulaContext(
-        age_fill=float(x_train["Age_Decades"].median()),
-        height_fill=float(x_train["Height_cm"].median()),
-        weight_fill=float(x_train["Weight_kg"].median()),
+        age_fill=float(x_train["Age_Num"].median()),
+        height_fill=float(x_train["Height (cm)"].median()),
+        weight_fill=float(x_train["Weight (kg)"].median()),
     )
 
 
 def iwpc_clinical_prediction(frame: pd.DataFrame, context: FormulaContext) -> np.ndarray:
-    age = frame["Age_Decades"].fillna(context.age_fill).astype(float)
-    height = frame["Height_cm"].fillna(context.height_fill).astype(float)
-    weight = frame["Weight_kg"].fillna(context.weight_fill).astype(float)
+    age = frame["Age_Num"].fillna(context.age_fill).astype(float)
+    height = frame["Height (cm)"].fillna(context.height_fill).astype(float)
+    weight = frame["Weight (kg)"].fillna(context.weight_fill).astype(float)
     race = frame["Race_Group"].fillna("Other/Unknown")
     amiodarone = frame["Amiodarone"].fillna(0.0).astype(float)
     inducer = frame["Enzyme_Inducer"].fillna(0.0).astype(float)
@@ -294,9 +166,9 @@ def iwpc_clinical_prediction(frame: pd.DataFrame, context: FormulaContext) -> np
 
 
 def iwpc_pharmacogenetic_prediction(frame: pd.DataFrame, context: FormulaContext) -> np.ndarray:
-    age = frame["Age_Decades"].fillna(context.age_fill).astype(float)
-    height = frame["Height_cm"].fillna(context.height_fill).astype(float)
-    weight = frame["Weight_kg"].fillna(context.weight_fill).astype(float)
+    age = frame["Age_Num"].fillna(context.age_fill).astype(float)
+    height = frame["Height (cm)"].fillna(context.height_fill).astype(float)
+    weight = frame["Weight (kg)"].fillna(context.weight_fill).astype(float)
     race = frame["Race_Group"].fillna("Other/Unknown")
     amiodarone = frame["Amiodarone"].fillna(0.0).astype(float)
     inducer = frame["Enzyme_Inducer"].fillna(0.0).astype(float)
@@ -377,7 +249,7 @@ def create_comparison_plot(metrics: pd.DataFrame):
 
 def create_scatter_plot(y_true: pd.Series, predictions: dict[str, np.ndarray]):
     selected_models = [
-        "Our Model (Tuned LightGBM)",
+        "LightGBM",
         "IWPC Pharmacogenetic Calculator",
         "XGBoost",
     ]
@@ -565,7 +437,7 @@ def main():
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     df = load_dataset()
-    x, y = prepare_dataset(df)
+    x, y, num_features, cat_features = prepare_dataset(df)
 
     x_train, x_test, y_train, y_test = train_test_split(
         x, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
@@ -584,7 +456,7 @@ def main():
         predictions[name] = pred
         metrics_records.append({"model": name, **evaluate_predictions(y_test, pred)})
 
-    for name, pipeline in build_models().items():
+    for name, pipeline in build_models(num_features, cat_features).items():
         pipeline.fit(x_train, y_train)
         pred = np.maximum(pipeline.predict(x_test), 0.0)
         fitted_models[name] = pipeline

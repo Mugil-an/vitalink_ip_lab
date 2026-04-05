@@ -6,134 +6,24 @@ import matplotlib.pyplot as plt
 import shap
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer, KNNImputer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import warnings
 
+from preprocessing import create_preprocessor, load_dataframe, prepare_warfarin_dose_dataset
+
 warnings.filterwarnings('ignore')
 
 file_path = os.getenv("WARFARIN_TRAIN_DATA", './warfarin_pipeline/data/iwpc_warfarin.xls')
 
-def load_dataframe(path):
-    ext = os.path.splitext(path)[1].lower()
-    if ext in ['.xls', '.xlsx']:
-        try:
-            return pd.read_excel(path, sheet_name='Subject Data')
-        except Exception:
-            return pd.read_excel(path)
-    if ext == '.csv':
-        return pd.read_csv(path)
-    raise ValueError(f"Unsupported file extension: {ext}")
-
 df = load_dataframe(file_path)
-
-# Feature Engineering
-def map_age(age_str):
-    if pd.isna(age_str):
-        return np.nan
-    age_str = str(age_str).strip()
-    mapping = {
-        "10 - 19": 1.5, "20 - 29": 2.5, "30 - 39": 3.5,
-        "40 - 49": 4.5, "50 - 59": 5.5, "60 - 69": 6.5,
-        "70 - 79": 7.5, "80 - 89": 8.5, "90+": 9.5
-    }
-    if age_str in mapping:
-        return mapping[age_str]
-    try:
-        return float(age_str)
-    except Exception:
-        return np.nan
 
 print("2. Preprocessing Data...")
 
-is_iwpc_schema = 'Therapeutic Dose of Warfarin' in df.columns
-
-if 'Therapeutic Dose of Warfarin' in df.columns:
-    # IWPC schema
-    df = df.dropna(subset=['Therapeutic Dose of Warfarin'])
-    y = pd.to_numeric(df['Therapeutic Dose of Warfarin'], errors='coerce')
-
-    race_col = 'Race (Reported)' if 'Race (Reported)' in df.columns else ('Race' if 'Race' in df.columns else None)
-    if race_col is None:
-        raise ValueError("Could not find race column. Expected 'Race (Reported)' or 'Race'.")
-
-    df['Age_Num'] = df['Age'].apply(map_age)
-
-    def map_race(race):
-        if pd.isna(race):
-            return 'Unknown'
-        race = str(race)
-        if 'White' in race:
-            return 'White'
-        if 'Black' in race or 'African' in race:
-            return 'Black'
-        if 'Asian' in race:
-            return 'Asian'
-        return 'Other'
-
-    df['Race_Group'] = df[race_col].apply(map_race)
-
-    amiodarone_col = 'Amiodarone (Cordarone)' if 'Amiodarone (Cordarone)' in df.columns else ('Amiodarone' if 'Amiodarone' in df.columns else None)
-    if amiodarone_col is None:
-        df['Amiodarone'] = 0.0
-    else:
-        df['Amiodarone'] = pd.to_numeric(df[amiodarone_col], errors='coerce').fillna(0.0)
-
-    enzyme_cols = ['Carbamazepine (Tegretol)', 'Phenytoin (Dilantin)', 'Rifampin or Rifampicin']
-    existing_enzyme_cols = [col for col in enzyme_cols if col in df.columns]
-    if existing_enzyme_cols:
-        for col in existing_enzyme_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
-        df['Enzyme_Inducer'] = df[existing_enzyme_cols].max(axis=1)
-    else:
-        df['Enzyme_Inducer'] = 0.0
-
-    df['CYP2C9'] = df['Cyp2C9 genotypes'].fillna('Unknown')
-    common_cyp = ['*1/*1', '*1/*2', '*1/*3', '*2/*2', '*2/*3', '*3/*3']
-    df['CYP2C9'] = df['CYP2C9'].apply(lambda x: x if x in common_cyp else 'Other/Unknown')
-
-    df['VKORC1'] = df['VKORC1 -1639 consensus'].fillna('Unknown')
-
-    num_features = ['Age_Num', 'Height (cm)', 'Weight (kg)', 'Amiodarone', 'Enzyme_Inducer']
-    cat_features_clinical = ['Race_Group']
-    cat_features_genetic = ['CYP2C9', 'VKORC1']
-
-    clinical_cols = ['Age_Num', 'Height (cm)', 'Weight (kg)', 'Amiodarone', 'Enzyme_Inducer', 'Race_Group']
-    genetic_cols = ['CYP2C9', 'VKORC1']
-    features = clinical_cols + genetic_cols
-    X = df[features]
-
-elif 'WarfarinDose' in df.columns:
-    # Synthetic schema
-    df = df.dropna(subset=['WarfarinDose'])
-    y = pd.to_numeric(df['WarfarinDose'], errors='coerce')
-
-    for col in ['Age', 'Height', 'Weight', 'Target_INR', 'Renal_Function']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-
-    for col in ['Gender', 'Amiodarone', 'Aspirin', 'Smoker', 'CYP2C9', 'VKORC1', 'CYP4F2']:
-        if col not in df.columns:
-            df[col] = 'Unknown'
-        df[col] = df[col].astype(str).fillna('Unknown')
-
-    num_features = ['Age', 'Height', 'Weight', 'Target_INR', 'Renal_Function']
-    cat_features_clinical = ['Gender', 'Amiodarone', 'Aspirin', 'Smoker']
-    cat_features_genetic = ['CYP2C9', 'VKORC1', 'CYP4F2']
-    features = num_features + cat_features_clinical + cat_features_genetic
-    X = df[features]
-
-else:
-    raise ValueError(
-        "Unsupported dataset schema. Expected either IWPC columns with 'Therapeutic Dose of Warfarin' "
-        "or synthetic columns with 'WarfarinDose'."
-    )
+X, y, num_features, cat_features_clinical, cat_features_genetic, is_iwpc_schema = prepare_warfarin_dose_dataset(df)
 
 # Train-Test Split
 print("3. Splitting Data...")
@@ -141,27 +31,8 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 y_test_true_dose = y_test
 
 # Pipelines
-num_transformer = Pipeline(steps=[
-    ('imputer', KNNImputer(n_neighbors=5)),
-    ('scaler', StandardScaler())
-])
-
-cat_transformer = Pipeline(steps=[
-    ('imputer', SimpleImputer(strategy='constant', fill_value='Unknown')),
-    ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
-])
-
-preprocessor_clinical = ColumnTransformer(
-    transformers=[
-        ('num', num_transformer, num_features),
-        ('cat', cat_transformer, cat_features_clinical)
-    ])
-
-preprocessor_pgx = ColumnTransformer(
-    transformers=[
-        ('num', num_transformer, num_features),
-        ('cat', cat_transformer, cat_features_clinical + cat_features_genetic)
-    ])
+preprocessor_clinical = create_preprocessor(num_features, cat_features_clinical)
+preprocessor_pgx = create_preprocessor(num_features, cat_features_clinical + cat_features_genetic)
 
 models = {
     "1. Clinical Baseline (Linear)": Pipeline(steps=[('preprocessor', preprocessor_clinical), ('regressor', LinearRegression())]),
@@ -169,7 +40,6 @@ models = {
     "3. Random Forest": Pipeline(steps=[('preprocessor', preprocessor_pgx), ('regressor', RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10))]),
     "4. XGBoost": Pipeline(steps=[('preprocessor', preprocessor_pgx), ('regressor', XGBRegressor(n_estimators=100, learning_rate=0.05, max_depth=5, random_state=42))]),
     "5. LightGBM": Pipeline(steps=[('preprocessor', preprocessor_pgx), ('regressor', LGBMRegressor(n_estimators=100, learning_rate=0.05, max_depth=5, random_state=42, verbose=-1))]),
-    "6. Neural Network (MLP)": Pipeline(steps=[('preprocessor', preprocessor_pgx), ('regressor', MLPRegressor(hidden_layer_sizes=(64, 32), activation='relu', max_iter=500, random_state=42))])
 }
 
 def calculate_metrics(y_true, y_pred):

@@ -20,18 +20,17 @@ This report compares the repository model against the requested baseline machine
 
 | rank | model | rmse | mae | r2 | within_20_pct |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Our Model (Tuned LightGBM) | 11.8946 | 8.7178 | 0.4218 | 41.9530 |
-| 2 | IWPC Pharmacogenetic Calculator | 11.9198 | 8.6526 | 0.4193 | 41.6817 |
-| 3 | Linear Regression | 11.9216 | 8.7350 | 0.4192 | 42.0434 |
-| 4 | Neural Network | 12.1569 | 8.8823 | 0.3960 | 41.7722 |
-| 5 | XGBoost | 12.2350 | 8.8401 | 0.3882 | 41.7722 |
-| 6 | Random Forest | 13.0668 | 9.5442 | 0.3022 | 40.3255 |
-| 7 | IWPC Clinical Formula | 13.8394 | 10.0696 | 0.2173 | 35.6239 |
+| 1 | LightGBM | 11.8967 | 8.7220 | 0.4216 | 41.9530 |
+| 2 | Linear Regression | 11.9207 | 8.7386 | 0.4193 | 42.3146 |
+| 3 | IWPC Pharmacogenetic Calculator | 12.0332 | 8.6777 | 0.4082 | 41.8626 |
+| 4 | XGBoost | 12.2965 | 8.8763 | 0.3821 | 41.4105 |
+| 5 | Random Forest | 13.0880 | 9.5646 | 0.2999 | 40.3255 |
+| 6 | IWPC Clinical Formula | 13.8728 | 10.3894 | 0.2135 | 33.6347 |
 
 ## Main Findings
-- Best overall model on this split: **Our Model (Tuned LightGBM)** with RMSE `11.89` mg/week, MAE `8.72` mg/week, R² `0.422`, and `42.0%` within 20% of actual dose.
-- Against the **IWPC Pharmacogenetic Calculator**, the best model reduced RMSE by `0.03` mg/week, trailed on MAE by `0.07` mg/week, and gained `0.3` points on within-20% accuracy.
-- The **IWPC Clinical Formula** scored RMSE `13.84` mg/week and MAE `10.07` mg/week, showing the expected gap between a clinical-only rule and the stronger genotype-aware models.
+- Best overall model on this split: **LightGBM** with RMSE `11.90` mg/week, MAE `8.72` mg/week, R² `0.422`, and `42.0%` within 20% of actual dose.
+- Against the **IWPC Pharmacogenetic Calculator**, the best model reduced RMSE by `0.14` mg/week, trailed on MAE by `0.04` mg/week, and gained `0.1` points on within-20% accuracy.
+- The **IWPC Clinical Formula** scored RMSE `13.87` mg/week and MAE `10.39` mg/week, showing the expected gap between a clinical-only rule and the stronger genotype-aware models.
 
 ## Visual Artifacts
 - Model comparison dashboard: `/home/karthick_js/Documents/programs/vitalink_ip_lab/ml_pipeline/warfarin_pipeline/evaluation/output/iwpc_model_comparison.png`
@@ -44,16 +43,16 @@ Top global drivers for the best model:
 
 | feature | mean_abs_shap |
 | --- | --- |
-| VKORC1_A/A | 4.2535 |
-| VKORC1_G/G | 3.2412 |
-| Weight_kg | 3.0852 |
-| Age_Decades | 2.9233 |
-| CYP2C9_*1/*1 | 1.8285 |
-| Height_cm | 1.0199 |
-| Amiodarone | 0.5920 |
-| Race_Group_Asian | 0.3484 |
-| CYP2C9_*1/*3 | 0.3115 |
-| VKORC1_Unknown | 0.3077 |
+| VKORC1_A/A | 4.2794 |
+| VKORC1_G/G | 3.1458 |
+| Weight (kg) | 3.0719 |
+| Age_Num | 2.9143 |
+| CYP2C9_*1/*1 | 1.8390 |
+| Height (cm) | 0.9990 |
+| Amiodarone | 0.5904 |
+| CYP2C9_*1/*3 | 0.3032 |
+| VKORC1_Unknown | 0.2731 |
+| Race_Group_White | 0.2505 |
 
 ## Generated Files
 - Metrics CSV: `/home/karthick_js/Documents/programs/vitalink_ip_lab/ml_pipeline/warfarin_pipeline/evaluation/output/iwpc_model_metrics.csv`

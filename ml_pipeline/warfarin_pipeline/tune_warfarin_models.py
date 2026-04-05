@@ -1,20 +1,18 @@
 import json
 import warnings
 from pathlib import Path
+import sys
 
 import joblib
 import numpy as np
 import optuna
-import pandas as pd
 from lightgbm import LGBMRegressor
 from sklearn.base import clone
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import KNNImputer, SimpleImputer
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBRegressor
 
 warnings.filterwarnings("ignore")
@@ -29,97 +27,17 @@ TEST_SIZE = 0.2
 CV_SPLITS = 3
 N_TRIALS = 25
 
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
-def map_age(age_str):
-    if pd.isna(age_str):
-        return np.nan
-    age_str = str(age_str).strip()
-    mapping = {
-        "10 - 19": 1.5,
-        "20 - 29": 2.5,
-        "30 - 39": 3.5,
-        "40 - 49": 4.5,
-        "50 - 59": 5.5,
-        "60 - 69": 6.5,
-        "70 - 79": 7.5,
-        "80 - 89": 8.5,
-        "90+": 9.5,
-    }
-    if age_str in mapping:
-        return mapping[age_str]
-    try:
-        return float(age_str)
-    except Exception:
-        return np.nan
-
-
-def map_race(race):
-    if pd.isna(race):
-        return "Unknown"
-    race = str(race)
-    if "White" in race:
-        return "White"
-    if "Black" in race or "African" in race:
-        return "Black"
-    if "Asian" in race:
-        return "Asian"
-    return "Other"
+from preprocessing import create_preprocessor, load_dataframe, prepare_iwpc_dose_dataset
 
 
 def load_dataset():
     print("1. Loading and preprocessing data...")
-    df = pd.read_excel(DATA_PATH, sheet_name="Subject Data")
-    df = df.dropna(subset=["Therapeutic Dose of Warfarin"]).copy()
-
-    y = pd.to_numeric(df["Therapeutic Dose of Warfarin"], errors="coerce")
-    y = y.fillna(y.median())
-
-    df["Age_Num"] = df["Age"].apply(map_age)
-    df["Race_Group"] = df["Race (Reported)"].apply(map_race)
-    df["Amiodarone"] = pd.to_numeric(df["Amiodarone (Cordarone)"], errors="coerce").fillna(0.0)
-
-    enzyme_cols = [
-        "Carbamazepine (Tegretol)",
-        "Phenytoin (Dilantin)",
-        "Rifampin or Rifampicin",
-    ]
-    for col in enzyme_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
-    df["Enzyme_Inducer"] = df[enzyme_cols].max(axis=1)
-
-    common_cyp = ["*1/*1", "*1/*2", "*1/*3", "*2/*2", "*2/*3", "*3/*3"]
-    df["CYP2C9"] = df["Cyp2C9 genotypes"].fillna("Unknown")
-    df["CYP2C9"] = df["CYP2C9"].apply(lambda value: value if value in common_cyp else "Other/Unknown")
-    df["VKORC1"] = df["VKORC1 -1639 consensus"].fillna("Unknown")
-
-    num_features = ["Age_Num", "Height (cm)", "Weight (kg)", "Amiodarone", "Enzyme_Inducer"]
-    cat_features = ["Race_Group", "CYP2C9", "VKORC1"]
-    features = num_features + cat_features
-    X = df[features]
+    df = load_dataframe(DATA_PATH)
+    X, y, num_features, cat_features = prepare_iwpc_dose_dataset(df)
     return X, y, num_features, cat_features
-
-
-def create_preprocessor(num_features, cat_features):
-    num_transformer = Pipeline(
-        steps=[
-            ("imputer", KNNImputer(n_neighbors=5)),
-            ("scaler", StandardScaler()),
-        ]
-    )
-
-    cat_transformer = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="constant", fill_value="Unknown")),
-            ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-        ]
-    )
-
-    return ColumnTransformer(
-        transformers=[
-            ("num", num_transformer, num_features),
-            ("cat", cat_transformer, cat_features),
-        ]
-    )
 
 
 def evaluate_model(model, X_test, y_test):
@@ -231,6 +149,7 @@ def make_lgbm_objective(X_train, y_train):
 
 def write_markdown_report(results):
     ridge = results["baseline_ridge"]
+    rf_default = results["default_rf"]
     xgb_default = results["default_xgb"]
     xgb_tuned = results["tuned_xgb"]
     lgbm_default = results["default_lgbm"]
@@ -256,6 +175,7 @@ def write_markdown_report(results):
         "| Model | Stage | R2 | RMSE | MAE | Within 20% |",
         "| --- | --- | ---: | ---: | ---: | ---: |",
         f"| Ridge pharmacogenetic baseline | Existing baseline | {ridge['metrics']['r2']:.4f} | {ridge['metrics']['rmse']:.2f} | {ridge['metrics']['mae']:.2f} | {ridge['metrics']['within_20_pct']:.2f}% |",
+        f"| Random Forest | Existing baseline | {rf_default['metrics']['r2']:.4f} | {rf_default['metrics']['rmse']:.2f} | {rf_default['metrics']['mae']:.2f} | {rf_default['metrics']['within_20_pct']:.2f}% |",
         f"| XGBoost | Default parameters | {xgb_default['metrics']['r2']:.4f} | {xgb_default['metrics']['rmse']:.2f} | {xgb_default['metrics']['mae']:.2f} | {xgb_default['metrics']['within_20_pct']:.2f}% |",
         f"| XGBoost | Optuna tuned | {xgb_tuned['metrics']['r2']:.4f} | {xgb_tuned['metrics']['rmse']:.2f} | {xgb_tuned['metrics']['mae']:.2f} | {xgb_tuned['metrics']['within_20_pct']:.2f}% |",
         f"| LightGBM | Default parameters | {lgbm_default['metrics']['r2']:.4f} | {lgbm_default['metrics']['rmse']:.2f} | {lgbm_default['metrics']['mae']:.2f} | {lgbm_default['metrics']['within_20_pct']:.2f}% |",
@@ -319,6 +239,16 @@ def main():
         num_features,
         cat_features,
     )
+    rf_default_pipeline = build_pipeline(
+        RandomForestRegressor(
+            n_estimators=300,
+            min_samples_leaf=2,
+            random_state=RANDOM_STATE,
+            n_jobs=1,
+        ),
+        num_features,
+        cat_features,
+    )
     lgbm_default_pipeline = build_pipeline(
         LGBMRegressor(
             n_estimators=100,
@@ -335,14 +265,17 @@ def main():
     print("3. Evaluating before-tuning baselines...")
     ridge_pipeline.fit(X_train, y_train)
     xgb_default_pipeline.fit(X_train, y_train)
+    rf_default_pipeline.fit(X_train, y_train)
     lgbm_default_pipeline.fit(X_train, y_train)
 
     ridge_metrics = evaluate_model(ridge_pipeline, X_test, y_test)
     xgb_default_metrics = evaluate_model(xgb_default_pipeline, X_test, y_test)
+    rf_default_metrics = evaluate_model(rf_default_pipeline, X_test, y_test)
     lgbm_default_metrics = evaluate_model(lgbm_default_pipeline, X_test, y_test)
 
     print(f"   Ridge baseline: {format_metrics(ridge_metrics)}")
     print(f"   XGBoost default: {format_metrics(xgb_default_metrics)}")
+    print(f"   Random Forest baseline: {format_metrics(rf_default_metrics)}")
     print(f"   LightGBM default: {format_metrics(lgbm_default_metrics)}")
 
     print("4. Tuning XGBoost with Optuna...")
@@ -373,6 +306,7 @@ def main():
 
     candidates = [
         {"name": "Ridge pharmacogenetic baseline", "model": ridge_pipeline, "metrics": ridge_metrics},
+        {"name": "Random Forest baseline", "model": rf_default_pipeline, "metrics": rf_default_metrics},
         {"name": "Optuna-tuned XGBoost", "model": tuned_xgb_pipeline, "metrics": tuned_xgb_metrics},
         {"name": "Optuna-tuned LightGBM", "model": tuned_lgbm_pipeline, "metrics": tuned_lgbm_metrics},
     ]
@@ -388,6 +322,7 @@ def main():
         "split": {"test_size": TEST_SIZE, "random_state": RANDOM_STATE},
         "optuna": {"trials_per_model": N_TRIALS, "cv_splits": CV_SPLITS},
         "baseline_ridge": {"metrics": ridge_metrics},
+        "default_rf": {"metrics": rf_default_metrics},
         "default_xgb": {"metrics": xgb_default_metrics},
         "tuned_xgb": {
             "metrics": tuned_xgb_metrics,

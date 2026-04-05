@@ -75,3 +75,17 @@ R2 Improved by:                   0.8347
 
 Updated model saved to /home/karthick_js/Documents/programs/vitalink_ip_lab/ml_pipeline/warfarin_pipeline/models/warfarin_model_v2.json
 2026-04-05 00:21:54,868 | INFO | mlops.orchestrator | Cycle summary written: /home/karthick_js/Documents/programs/vitalink_ip_lab/ml_pipeline/mlops/reports/last_cycle_summary.json
+2026-04-05 10:42:07,996 | INFO | mlops.orchestrator | Running command: python warfarin_pipeline/data_generator.py
+2026-04-05 10:43:13,771 | INFO | mlops.orchestrator | Generating realistic warfarin cohort (2500 patients)...
+Using CTGAN with source data: https://raw.githubusercontent.com/ankmathur96/warfarin-bandits/master/data/warfarin.csv
+--------------------------------------------------
+DATA GENERATION SUMMARY
+--------------------------------------------------
+Total Patients: 2500
+Mean Dose: 29.9 mg/week (SD: 14.9)
+Range: 3.7 - 90.0 mg/week
+Mean Days To Stable: 25.0 days
+--------------------------------------------------
+Saved dataset to warfarin_pipeline/data/warfarin_cohort.csv
+2026-04-05 10:43:13,826 | INFO | mlops.orchestrator | Monitoring report written: /home/karthick_js/Documents/programs/vitalink_ip_lab/ml_pipeline/mlops/reports/warfarin_monitor.json
+2026-04-05 10:43:13,833 | INFO | mlops.orchestrator | Cycle summary written: /home/karthick_js/Documents/programs/vitalink_ip_lab/ml_pipeline/mlops/reports/last_cycle_summary.json
