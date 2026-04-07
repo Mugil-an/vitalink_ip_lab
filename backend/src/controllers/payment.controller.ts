@@ -55,7 +55,7 @@ export const handleRazorpayWebhook = asyncHandler(async (req: Request, res: Resp
 })
 
 export const getFeatureCosts = asyncHandler(async (req: Request, res: Response) => {
-  const costs = patientTokenService.getFeatureCostsSummary()
+  const costs = await patientTokenService.getFeatureCostsSummary()
   
   res.status(StatusCodes.OK).json(new ApiResponse(StatusCodes.OK, 'Feature costs fetched', { costs }))
 })

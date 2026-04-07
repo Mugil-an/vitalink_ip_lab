@@ -1,4 +1,4 @@
-import { TokenWallet, TokenTransaction } from '@alias/models'
+import { TokenWallet, TokenTransaction, SystemConfig } from '@alias/models'
 import { ApiError } from '@alias/utils'
 import { StatusCodes } from 'http-status-codes'
 import logger from '@alias/utils/logger'
@@ -12,24 +12,13 @@ export enum PatientFeature {
   VIDEO_CALL = 'VIDEO_CALL',
 }
 
-// Token costs for different features in development
-// These can be overridden from SystemConfig in production
-const DEFAULT_FEATURE_COSTS: Record<PatientFeature, number> = {
-  [PatientFeature.DOCTOR_CONSULTATION]: 100,
-  [PatientFeature.REPORT_UPLOAD]: 25,
-  [PatientFeature.HEALTH_LOG_UPDATE]: 10,
-  [PatientFeature.PROFILE_UPDATE]: 15,
-  [PatientFeature.DOSAGE_LOG]: 5,
-  [PatientFeature.VIDEO_CALL]: 50,
-}
-
 /**
- * Get the token cost for a specific feature
+ * Get the token cost for a specific feature from SystemConfig
  */
 export async function getFeatureCost(feature: PatientFeature): Promise<number> {
-  // In future, this can be fetched from SystemConfig
-  // For now, use default costs
-  return DEFAULT_FEATURE_COSTS[feature] || 0
+  const config = await SystemConfig.findOne({ is_active: true }).lean()
+  const featureWeights = config?.feature_weights || {}
+  return (featureWeights as Record<string, number>)[feature] || 0
 }
 
 /**
@@ -198,8 +187,9 @@ export async function getTokenHistory(
 }
 
 /**
- * Get feature costs summary
+ * Get feature costs summary from SystemConfig
  */
-export function getFeatureCostsSummary(): Record<PatientFeature, number> {
-  return DEFAULT_FEATURE_COSTS
+export async function getFeatureCostsSummary(): Promise<Record<string, number>> {
+  const config = await SystemConfig.findOne({ is_active: true }).lean()
+  return (config?.feature_weights || {}) as Record<string, number>
 }
